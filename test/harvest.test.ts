@@ -220,6 +220,30 @@ describe('harvestSource', () => {
     expect(result.cleanSource).toBe('// gloss\nexport const value = 1;\n');
   });
 
+  test('an anchor containing backticks gets a wider code fence', () => {
+    const result = harvestSource(
+      'inline.ts',
+      ['// the note', 'export const label = `a b`;', ''].join('\n'),
+      undefined,
+      'src/inline.ts',
+    );
+
+    expect(sectionBody(result.gloss, 'label')).toBe(
+      '> ``export const label = `a b`;``\n\nthe note',
+    );
+  });
+
+  test('an anchor that starts or ends with a backtick is padded inside its fence', () => {
+    const result = harvestSource(
+      'inline.ts',
+      ['const value = cond', '  // the note', '    ? `left`', '    : `right`;', ''].join('\n'),
+      undefined,
+      'src/inline.ts',
+    );
+
+    expect(sectionBody(result.gloss, 'value')).toBe('> `` ? `left` ``\n\nthe note');
+  });
+
   test('a mid-line block comment is excised in place', () => {
     const result = harvestSource(
       'inline.ts',

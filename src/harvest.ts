@@ -134,13 +134,20 @@ const groupAdjacent = (hits: CommentHit[]): CommentHit[][] => {
   return groups;
 };
 
+const codeSpan = (text: string): string => {
+  const longestRun = Math.max(0, ...[...text.matchAll(/`+/g)].map((match) => match[0].length));
+  const fence = '`'.repeat(longestRun + 1);
+  const pad = text.startsWith('`') || text.endsWith('`') ? ' ' : '';
+  return `${fence}${pad}${text}${pad}${fence}`;
+};
+
 const entryFor = (group: CommentHit[]): string => {
   const body = group
     .map((hit) => stripCommentMarkers(hit.text))
     .filter((text) => text !== '')
     .join('\n');
   const anchor = group[0].adjacentCode;
-  return anchor === undefined ? body : `> \`${anchor}\`\n\n${body}`.trimEnd();
+  return anchor === undefined ? body : `> ${codeSpan(anchor)}\n\n${body}`.trimEnd();
 };
 
 const joinBlocks = (existing: string, addition: string): string =>
