@@ -1,0 +1,51 @@
+{
+  "name": "@inixiative/gloss",
+  "version": "0.0.0",
+  "description": "Decluttered source: commentary lives in a per-file gloss margin, not the code — harvester, watcher, lint, and read tooling",
+  "type": "module",
+  "license": "MIT",
+  "author": "Aron Greenspan",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/inixiative/gloss.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "bin": {
+    "gloss": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "snippets",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "prepare": "lefthook install",
+    "build": "tsup",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "check": "bun run typecheck && bun run lint && bun run test",
+    "prepublishOnly": "bun run check && bun run build"
+  },
+  "packageManager": "bun@1.3.14",
+  "devDependencies": {
+    "@biomejs/biome": "2.5.2",
+    "@inixiative/config": "^0.5.18",
+    "@types/bun": "1.3.14",
+    "lefthook": "2.1.9",
+    "tsup": "8.5.1",
+    "typescript": "6.0.3"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.9.0"
+  }
+}

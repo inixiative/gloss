@@ -1,0 +1,2 @@
+extends:
+  - '@inixiative/config/lefthook/base.yml'

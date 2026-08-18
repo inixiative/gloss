@@ -1,0 +1,11 @@
+pre-commit:
+  commands:
+    gloss-harvest:
+      glob: '*.{ts,tsx}'
+      run: bunx gloss harvest --staged
+      stage_fixed: true
+
+pre-push:
+  commands:
+    gloss-check:
+      run: bunx gloss check
