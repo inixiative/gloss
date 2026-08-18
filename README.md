@@ -7,6 +7,21 @@ inline, and moves everything else into a mirrored sidecar — `src/foo.ts` → `
 Clean source is the primary win; gloss content is upside for whoever reads the file next. An empty
 gloss is acceptable, not failure.
 
+## Where the gloss lives
+
+A mirrored tree at the repo root: every source file's margin is the same path under `.gloss/`, with
+`.md` appended.
+
+```
+src/lens/applyLens.ts        →  .gloss/src/lens/applyLens.ts.md
+src/fieldMap/types.ts        →  .gloss/src/fieldMap/types.ts.md
+packages/api/src/hooks.ts    →  .gloss/packages/api/src/hooks.ts.md
+```
+
+`.gloss/` is committed and reviewed like any docs tree — the one exception is
+`.gloss/.events.jsonl` (machine-local harvester state), which setup gitignores. A gloss file exists
+only when a source file has something in its margin; comment-free files get no mirror.
+
 ## The three permitted comment forms
 
 Everything else in a source file is harvestable, including JSDoc.
