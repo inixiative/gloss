@@ -220,6 +220,28 @@ describe('harvestSource', () => {
     expect(result.cleanSource).toBe('// gloss\nexport const value = 1;\n');
   });
 
+  test('heading-looking lines in a harvested block comment are escaped, not new sections', () => {
+    const result = harvestSource(
+      'inline.ts',
+      [
+        '/**',
+        ' * ## Type Conversions',
+        ' * dates become ISO strings',
+        ' * # Notes',
+        ' */',
+        'export const value = 1;',
+        '',
+      ].join('\n'),
+      undefined,
+      'src/inline.ts',
+    );
+
+    expect(sectionBody(result.gloss, 'value')).toBe(
+      '> `export const value = 1;`\n\n\\## Type Conversions\ndates become ISO strings\n\\# Notes',
+    );
+    expect(result.gloss.sections.map((section) => section.symbol)).toEqual(['value']);
+  });
+
   test('an anchor containing backticks gets a wider code fence', () => {
     const result = harvestSource(
       'inline.ts',

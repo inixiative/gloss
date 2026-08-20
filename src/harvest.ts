@@ -142,9 +142,17 @@ const codeSpan = (text: string): string => {
   return `${fence}${pad}${text}${pad}${fence}`;
 };
 
+// why: a harvested line starting with '#' would parse as gloss structure (h1 path header,
+// '##' symbol section) and fabricate sections naming no symbol; escape it at column 0.
+const escapeHeadings = (text: string): string =>
+  text
+    .split('\n')
+    .map((line) => (line.startsWith('#') ? `\\${line}` : line))
+    .join('\n');
+
 const entryFor = (group: CommentHit[]): string => {
   const body = group
-    .map((hit) => stripCommentMarkers(hit.text))
+    .map((hit) => escapeHeadings(stripCommentMarkers(hit.text)))
     .filter((text) => text !== '')
     .join('\n');
   const anchor = group[0].adjacentCode;
