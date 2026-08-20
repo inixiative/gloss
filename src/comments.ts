@@ -26,6 +26,7 @@ export const DIRECTIVE_PATTERNS: RegExp[] = [
   /\bSPDX-License-Identifier:/,
   /^\/\*!/,
   /^\/\*[\s*!]*Copyright\b/i,
+  /@atlas\b/,
 ];
 
 let repoDirectivePatterns: RegExp[] = [];

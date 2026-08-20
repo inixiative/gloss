@@ -40,6 +40,7 @@ const DIRECTIVE_SAMPLES = [
   '// SPDX-License-Identifier: MIT',
   '/*! bang license block */',
   '/*\n * Copyright (c) 2026 Example Corp\n */',
+  '/**\n * @atlas\n * @kind service\n * @partOf feature:missions\n */',
 ];
 
 describe('comment classification', () => {
