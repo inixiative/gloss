@@ -28,6 +28,12 @@ export const DIRECTIVE_PATTERNS: RegExp[] = [
   /^\/\*[\s*!]*Copyright\b/i,
 ];
 
+let repoDirectivePatterns: RegExp[] = [];
+
+export const setRepoDirectives = (patterns: RegExp[]): void => {
+  repoDirectivePatterns = patterns;
+};
+
 export type SourceComment = {
   pos: number;
   end: number;
@@ -125,6 +131,7 @@ const kindOf = (comment: SourceComment): CommentKind => {
   if (marker) return marker.kind;
   if (isWhy(comment)) return 'why';
   if (DIRECTIVE_PATTERNS.some((pattern) => pattern.test(comment.text))) return 'directive';
+  if (repoDirectivePatterns.some((pattern) => pattern.test(comment.text))) return 'directive';
   return 'harvestable';
 };
 

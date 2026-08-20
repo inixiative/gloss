@@ -1,6 +1,6 @@
 {
   "name": "@inixiative/gloss",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Decluttered source: commentary lives in a per-file gloss margin, not the code — harvester, watcher, lint, and read tooling",
   "type": "module",
   "license": "MIT",

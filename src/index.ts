@@ -1,5 +1,6 @@
 export { checkFile, checkRepo } from './check';
-export { classifyComments, DIRECTIVE_PATTERNS } from './comments';
+export { classifyComments, DIRECTIVE_PATTERNS, setRepoDirectives } from './comments';
+export { loadRepoDirectives } from './config';
 export { fixRepo } from './fix';
 export {
   glossPathFor,

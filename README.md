@@ -18,6 +18,10 @@ src/fieldMap/types.ts        →  .gloss/src/fieldMap/types.ts.md
 packages/api/src/hooks.ts    →  .gloss/packages/api/src/hooks.ts.md
 ```
 
+Enumeration respects `.gitignore`: a gitignored source file (generated SDK clients, build
+output) is never linted, harvested, or checked, tracked or not. Outside a git repo the full
+tree is walked.
+
 `.gloss/` is committed and reviewed like any docs tree — the one exception is
 `.gloss/.events.jsonl` (machine-local harvester state), which setup gitignores. A gloss file exists
 only when a source file has something in its margin; comment-free files get no mirror.
@@ -53,6 +57,17 @@ export const resolveMarkerTarget = (source: ParsedSource, line: number) => { ...
 ```ts
 // biome-ignore lint/suspicious/noExplicitAny: the resolver hands back an untyped AST node
 ```
+
+Repos with their own machine-read comment forms extend the recognized set in `package.json` —
+regex sources tested against the full comment text:
+
+```json
+{ "gloss": { "directives": ["@atlas\\b"] } }
+```
+
+A config error (non-array, non-string entry, invalid regex, unparseable `package.json`) throws
+rather than degrading to no patterns — silently dropping a directive pattern would reclassify
+protected machine comments as harvestable and the next harvest would sweep them.
 
 ## The sidecar
 

@@ -3,6 +3,7 @@ import { dirname, extname, isAbsolute, join, relative, resolve } from 'node:path
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { checkRepo, normalizeRelPath } from './check';
+import { loadRepoDirectives } from './config';
 import { fixRepo } from './fix';
 import { runGit } from './git';
 import { glossPathFor } from './glossFile';
@@ -246,6 +247,7 @@ export const runCommand = (
   if (!line) return { code: runUsage(log) };
 
   const repoRoot = findRepoRoot(cwd);
+  loadRepoDirectives(repoRoot);
   const paths = line.positionals.map((path) => resolve(cwd, path));
   const [file] = paths;
   const symbol = line.positionals[1];

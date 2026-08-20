@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { isAbsolute, join, relative, sep } from 'node:path';
+import { ignoredPaths } from './git';
 import { glossPathFor, parseGlossDoc, sourcePathFor } from './glossFile';
 import { parseSource } from './resolver';
 import {
@@ -70,7 +71,9 @@ export const listSourceFiles = (repoRoot: string, paths?: string[]): string[] =>
     if (statSync(absolute).isDirectory()) walkSourceFiles(repoRoot, scope, found);
     else if (hasSourceExtension(scope)) found.push(scope);
   }
-  return [...new Set(found)].sort();
+  const unique = [...new Set(found)].sort();
+  const ignored = ignoredPaths(repoRoot, unique);
+  return unique.filter((file) => !ignored.has(file));
 };
 
 export const listGlossFiles = (repoRoot: string): string[] => {

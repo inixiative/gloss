@@ -8,6 +8,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, extname, isAbsolute, join, relative, sep } from 'node:path';
+import { ignoredPaths } from './git';
 import { glossPathFor, parseGlossDoc, serializeGlossDoc, upsertSection } from './glossFile';
 import { parseSource } from './resolver';
 import {
@@ -295,7 +296,9 @@ export const sourceFilesUnder = (repoRoot: string, paths?: string[]): string[] =
     .map((file) => toPosix(relative(repoRoot, file)))
     .filter((file) => !file.split('/').some((segment) => SKIPPED_DIRECTORIES.has(segment)));
 
-  return [...new Set(files)];
+  const unique = [...new Set(files)];
+  const ignored = ignoredPaths(repoRoot, unique);
+  return unique.filter((file) => !ignored.has(file));
 };
 
 const ensureEventsIgnored = (repoRoot: string): void => {

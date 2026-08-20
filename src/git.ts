@@ -32,6 +32,24 @@ export const runGit = (repoRoot: string, args: string[]): GitResult => {
   }
 };
 
+// why: exit 1 ("nothing ignored") and exit 128 ("not a git repo") both throw with empty output,
+// and both must mean "filter nothing" — a repo without git still gets full enumeration.
+export const ignoredPaths = (repoRoot: string, relPaths: string[]): Set<string> => {
+  if (relPaths.length === 0) return new Set();
+  try {
+    const stdout = execFileSync('git', [...NEUTRAL_ARGS, 'check-ignore', '--stdin', '-z'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      input: relPaths.join('\0'),
+      stdio: ['pipe', 'pipe', 'ignore'],
+      maxBuffer: MAX_BUFFER,
+    });
+    return new Set(stdout.split('\0').filter((path) => path !== ''));
+  } catch {
+    return new Set();
+  }
+};
+
 const parseCommitLines = (stdout: string): GitCommit[] =>
   stdout.split('\n').flatMap((line) => {
     const match = COMMIT_LINE.exec(line.trimEnd());
