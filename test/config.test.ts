@@ -6,7 +6,7 @@ import { setRepoDirectives } from '../src/comments';
 import { loadRepoDirectives } from '../src/config';
 import { lintPaths } from '../src/lint';
 
-const ATLAS_FILE = '/**\n * @atlas\n * @kind service\n */\nexport const value = 1;\n';
+const MARKED_FILE = '/**\n * @codemap\n * kind: service\n */\nexport const value = 1;\n';
 
 const makeRepo = (files: Record<string, string>): string => {
   const root = mkdtempSync(join(tmpdir(), 'gloss-config-'));
@@ -34,7 +34,7 @@ describe('loadRepoDirectives', () => {
   });
 
   test('without config a repo-specific machine comment is harvestable', () => {
-    const root = repo({ 'src/service.ts': ATLAS_FILE });
+    const root = repo({ 'src/service.ts': MARKED_FILE });
     loadRepoDirectives(root);
 
     expect(lintPaths(root).map((violation) => violation.kind)).toEqual(['forbiddenComment']);
@@ -42,8 +42,8 @@ describe('loadRepoDirectives', () => {
 
   test('a configured pattern classifies the comment as a directive', () => {
     const root = repo({
-      'package.json': JSON.stringify({ gloss: { directives: ['@atlas\\b'] } }),
-      'src/service.ts': ATLAS_FILE,
+      'package.json': JSON.stringify({ gloss: { directives: ['@codemap\\b'] } }),
+      'src/service.ts': MARKED_FILE,
     });
     loadRepoDirectives(root);
 
