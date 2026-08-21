@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { sectionHistory } from '../src/history';
 import { renderGloss } from '../src/read';
-import { commitFiles, createRepo, destroyRepo, shallowCloneOf, writeFiles } from './tempRepo';
+import { commitFiles, createRepo, destroyRepo, shallowCloneOf } from './tempRepo';
 
 const SOURCE = 'src/mod.ts';
 const MIRROR = '.gloss/src/mod.ts.md';
