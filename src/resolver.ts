@@ -1,6 +1,6 @@
 import * as ts from 'typescript';
 import {
-  blankCommentRanges,
+  blankRanges,
   classifyComments,
   collectComments,
   markerShapeOf,
@@ -162,7 +162,7 @@ const bindMarkers = (
   targets: BindTarget[],
 ): { errors: ResolverError[]; hasFileMarker: boolean } => {
   const errors: ResolverError[] = [];
-  const blanked = blankCommentRanges(sourceText, comments);
+  const blanked = blankRanges(sourceText, comments);
   const sourceLines = sourceText.split('\n');
   const firstStatementStart = sourceFile.statements[0]?.getStart(sourceFile) ?? sourceText.length;
 
@@ -272,6 +272,17 @@ export const parseSource = (filePath: string, sourceText: string): ParsedSource 
     collectComments(sourceFile, sourceText),
     targets,
   );
+  const firstStatement = sourceFile.statements[0];
 
-  return { filePath, symbols, comments, hasFileMarker, errors };
+  return {
+    filePath,
+    symbols,
+    comments,
+    hasFileMarker,
+    errors,
+    firstStatementLine:
+      firstStatement === undefined
+        ? undefined
+        : lineAt(sourceFile, firstStatement.getStart(sourceFile)),
+  };
 };

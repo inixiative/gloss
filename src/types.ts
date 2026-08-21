@@ -29,6 +29,7 @@ export type CommentHit = {
   endLine: number;
   enclosingSymbol?: string;
   adjacentCode?: string;
+  removalText?: string;
 };
 
 export type ResolverErrorCode =
@@ -49,6 +50,7 @@ export type ParsedSource = {
   comments: CommentHit[];
   hasFileMarker: boolean;
   errors: ResolverError[];
+  firstStatementLine?: number;
 };
 
 export type GlossSection = {

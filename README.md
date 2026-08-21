@@ -75,6 +75,12 @@ Plain markdown, no frontmatter, no schema. An `# <source path>` h1, an optional 
 one `## <symbol>` section per symbol. Class members key as `Class.method`; `export default` keys as
 `default`. Linear and PR references are ordinary markdown links.
 
+An entry that fits on one line is one bullet; anything longer is a paragraph. The `## <symbol>`
+heading is the entry's only binding — it is the one link the checker can verify (dagger ↔ section).
+A quoted code line or a line number would answer "where does this apply" with a syntactic proxy
+that rots silently; prose that needs finer-than-symbol placement is load-bearing by definition and
+belongs inline as `// why:`.
+
 ```md
 # src/resolver.ts
 
@@ -84,9 +90,11 @@ lint-passes/CI-fails split-brain.
 
 ## resolveMarkerTarget
 
-Skips blank lines and `// why:` lines between the dagger and the declaration, but not decorators —
-a decorator is part of the declaration it decorates. Rejects multi-declarator `const a = 1, b = 2`
-rather than guessing which half was meant. See [ZLT-1204](https://linear.app/...).
+- a decorator is part of the declaration it decorates
+
+Skips blank lines and `// why:` lines between the dagger and the declaration. Rejects
+multi-declarator `const a = 1, b = 2` rather than guessing which half was meant. See
+[ZLT-1204](https://linear.app/...).
 
 ## ParsedSource
 
@@ -98,8 +106,7 @@ whose dagger was deleted.
 
 The write path is mechanical, not instructional. Comment the way you are trained to; the harvester
 sweeps every non-directive, non-`why:`, non-dagger comment out of the source into the enclosing
-symbol's gloss section — appending the quoted adjacent code line as an anchor — and plants the
-dagger. Nothing depends on an agent remembering a CLAUDE.md line through a long session, and nothing
+symbol's gloss section and plants the dagger. Nothing depends on an agent remembering a CLAUDE.md line through a long session, and nothing
 is deleted to satisfy lint: the spillway fills by machine.
 
 The calm default is harvest-at-commit (`gloss harvest --staged` in pre-commit). `gloss watch` is
@@ -112,7 +119,12 @@ one real race here: an agent whose `Read` predates the harvest is holding drifte
 
 ```
 ## resolveMarkerTarget    written 2026-06-14, symbol changed 3× since
+
+- a decorator is part of the declaration it decorates
 ```
+
+The staleness note is derived from git at read time — a stored date or line number would rot, a
+derived one cannot.
 
 Both timestamps come from git — the mirror's history for the note, a numeric `git log -L
 <start>,<end>:<file>` over the AST-resolved symbol span for the code. Nothing is written into any

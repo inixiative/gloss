@@ -35,14 +35,23 @@ export const setRepoDirectives = (patterns: RegExp[]): void => {
   repoDirectivePatterns = patterns;
 };
 
-export type SourceComment = {
+export type SourceRange = {
   pos: number;
   end: number;
+};
+
+export type SourceComment = SourceRange & {
   text: string;
   startLine: number;
   endLine: number;
   isLineComment: boolean;
   ownLine: boolean;
+};
+
+export type JsxCommentContainer = SourceRange & {
+  text: string;
+  startLine: number;
+  endLine: number;
 };
 
 export type MarkerShape = {
@@ -103,6 +112,39 @@ export const collectComments = (sourceFile: ts.SourceFile, sourceText: string): 
   return [...shebangRange(sourceText), ...collected].sort((a, b) => a.pos - b.pos);
 };
 
+// why: a JSX expression container with no expression can only be braces wrapping a comment; the
+// object-literal reading of `foo({/* x */})` is a different node, so the braces are ours to remove.
+export const jsxCommentContainers = (
+  sourceFile: ts.SourceFile,
+  sourceText: string,
+): JsxCommentContainer[] => {
+  const containers: JsxCommentContainer[] = [];
+
+  const visit = (node: ts.Node) => {
+    const parent = node.parent;
+    if (
+      ts.isJsxExpression(node) &&
+      node.expression === undefined &&
+      parent !== undefined &&
+      (ts.isJsxElement(parent) || ts.isJsxFragment(parent))
+    ) {
+      const pos = node.getStart(sourceFile);
+      const end = node.getEnd();
+      containers.push({
+        pos,
+        end,
+        text: sourceText.slice(pos, end),
+        startLine: lineAt(sourceFile, pos),
+        endLine: lineAt(sourceFile, end),
+      });
+    }
+    node.forEachChild(visit);
+  };
+
+  sourceFile.forEachChild(visit);
+  return containers;
+};
+
 export const markerShapeOf = (comment: SourceComment): MarkerShape | undefined => {
   if (!comment.isLineComment) return undefined;
   const text = comment.text.trimEnd();
@@ -115,11 +157,11 @@ export const markerShapeOf = (comment: SourceComment): MarkerShape | undefined =
   return undefined;
 };
 
-export const blankCommentRanges = (sourceText: string, comments: SourceComment[]): string => {
+export const blankRanges = (sourceText: string, ranges: SourceRange[]): string => {
   let blanked = sourceText;
-  for (const comment of comments) {
-    const masked = comment.text.replace(/[^\n]/g, ' ');
-    blanked = blanked.slice(0, comment.pos) + masked + blanked.slice(comment.end);
+  for (const range of ranges) {
+    const masked = sourceText.slice(range.pos, range.end).replace(/[^\n]/g, ' ');
+    blanked = blanked.slice(0, range.pos) + masked + blanked.slice(range.end);
   }
   return blanked;
 };
@@ -173,15 +215,19 @@ const enclosingSymbolFor = (
   return below?.name;
 };
 
-const adjacentCodeFor = (comment: SourceComment, codeLines: string[]): string | undefined => {
-  const own = codeOnLine(codeLines, comment.endLine);
-  if (own !== '') return own;
-  for (let line = comment.endLine + 1; line <= codeLines.length; line += 1) {
+const adjacentCodeFrom = (fromLine: number, codeLines: string[]): string | undefined => {
+  for (let line = fromLine; line <= codeLines.length; line += 1) {
     const code = codeOnLine(codeLines, line);
     if (code !== '') return code;
   }
   return undefined;
 };
+
+const containerAround = (
+  containers: JsxCommentContainer[],
+  comment: SourceComment,
+): JsxCommentContainer | undefined =>
+  containers.find((container) => container.pos <= comment.pos && container.end >= comment.end);
 
 export const classifyComments = (
   sourceFile: ts.SourceFile,
@@ -189,8 +235,10 @@ export const classifyComments = (
   symbols: SymbolEntry[],
 ): CommentHit[] => {
   const comments = collectComments(sourceFile, sourceText);
+  const containers = jsxCommentContainers(sourceFile, sourceText);
   const sourceLines = sourceText.split('\n');
-  const codeLines = blankCommentRanges(sourceText, comments).split('\n');
+  const codeLines = blankRanges(sourceText, comments).split('\n');
+  const labelledCodeLines = blankRanges(sourceText, [...comments, ...containers]).split('\n');
   const ordered = [...symbols].sort((a, b) => a.startLine - b.startLine);
 
   return comments.map((comment) => {
@@ -205,8 +253,19 @@ export const classifyComments = (
 
     const enclosingSymbol = enclosingSymbolFor(comment, ordered, sourceLines, codeLines);
     if (enclosingSymbol !== undefined) hit.enclosingSymbol = enclosingSymbol;
-    const adjacentCode = adjacentCodeFor(comment, codeLines);
-    if (adjacentCode !== undefined) hit.adjacentCode = adjacentCode;
+
+    const container = containerAround(containers, comment);
+    if (container === undefined) {
+      const adjacentCode = adjacentCodeFrom(comment.endLine, codeLines);
+      if (adjacentCode !== undefined) hit.adjacentCode = adjacentCode;
+      return hit;
+    }
+
+    hit.startLine = container.startLine;
+    hit.endLine = container.endLine;
+    hit.removalText = container.text;
+    const labelled = adjacentCodeFrom(container.endLine, labelledCodeLines);
+    if (labelled !== undefined) hit.adjacentCode = labelled;
     return hit;
   });
 };

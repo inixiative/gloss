@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { sectionHistory } from '../src/history';
 import { renderGloss } from '../src/read';
-import { commitFiles, createRepo, destroyRepo, shallowCloneOf } from './tempRepo';
+import { commitFiles, createRepo, destroyRepo, shallowCloneOf, writeFiles } from './tempRepo';
 
 const SOURCE = 'src/mod.ts';
 const MIRROR = '.gloss/src/mod.ts.md';
@@ -89,6 +91,14 @@ describe('renderGloss', () => {
     expect(renderGloss(glossedRepo(), SOURCE, 'nowhere').trim()).toBe(
       'no gloss for src/mod.ts nowhere',
     );
+  });
+
+  test('writes nothing back to the mirror or the source', () => {
+    const repoRoot = glossedRepo();
+    renderGloss(repoRoot, SOURCE);
+
+    expect(readFileSync(join(repoRoot, MIRROR), 'utf8')).toBe(MIRROR_V1);
+    expect(readFileSync(join(repoRoot, SOURCE), 'utf8')).toBe(SOURCE_V2);
   });
 
   test('reports the reason instead of a date when staleness is unavailable', () => {

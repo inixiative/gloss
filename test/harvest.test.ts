@@ -12,6 +12,8 @@ const HARVEST_FIXTURES = [
   'harvestBlock.ts',
   'harvestDecorated.ts',
   'harvestFileLevel.ts',
+  'animation.tsx',
+  'barrel.ts',
   'component.tsx',
   'markers.ts',
   'symbols.ts',
@@ -60,9 +62,7 @@ const HARVESTED_DEMO_GLOSS = [
   '',
   '## compute',
   '',
-  '> `return total * 2;`',
-  '',
-  'doubles the total',
+  '- doubles the total',
   '',
 ].join('\n');
 
@@ -92,29 +92,21 @@ describe('harvestSource', () => {
   const harvested = harvestFixture('harvest.ts');
 
   test('a comment inside a body lands under the enclosing symbol', () => {
-    expect(sectionBody(harvested.gloss, 'compute')).toBe(
-      '> `return total * 2;`\n\nthis note lives inside the body',
-    );
+    expect(sectionBody(harvested.gloss, 'compute')).toBe('- this note lives inside the body');
   });
 
   test('a comment above a declaration lands under that declaration', () => {
-    expect(sectionBody(harvested.gloss, 'rate')).toBe(
-      '> `export const rate = 0.5;`\n\nthis note sits above the declaration',
-    );
+    expect(sectionBody(harvested.gloss, 'rate')).toBe('- this note sits above the declaration');
   });
 
-  test('a trailing comment keeps its anchor and leaves the code on the line', () => {
-    expect(sectionBody(harvested.gloss, 'seed')).toBe(
-      '> `const seed = 1;`\n\ntrailing note on a code line',
-    );
+  test('a trailing comment is filed and leaves the code on the line', () => {
+    expect(sectionBody(harvested.gloss, 'seed')).toBe('- trailing note on a code line');
     expect(harvested.cleanSource).toContain('\n// gloss\nconst seed = 1;\n');
     expect(harvested.cleanSource).not.toContain('trailing note');
   });
 
-  test('a file-level comment becomes the preamble', () => {
-    expect(harvested.gloss.preamble).toBe(
-      '> `console.log(rate);`\n\nstray note between statements',
-    );
+  test('a comment between top-level statements is filed in the preamble', () => {
+    expect(harvested.gloss.preamble).toBe('- stray note between statements');
   });
 
   test('every harvested comment is reported in source order', () => {
@@ -151,9 +143,7 @@ describe('harvestSource', () => {
   test('the file dagger is planted after the shebang and the license block', () => {
     const result = harvestFixture('harvestFileLevel.ts');
 
-    expect(result.gloss.preamble).toBe(
-      "> `console.log('demo');`\n\nthis file is the entry point for the demo",
-    );
+    expect(result.gloss.preamble).toBe('- this file is the entry point for the demo');
     expect(result.cleanSource).toBe(
       [
         '#!/usr/bin/env bun',
@@ -171,7 +161,7 @@ describe('harvestSource', () => {
     const result = harvestFixture('harvestDecorated.ts');
 
     expect(sectionBody(result.gloss, 'Panel.render')).toBe(
-      '> `return thing;`\n\nrenders the panel straight from thing',
+      '- renders the panel straight from thing',
     );
     expect(result.cleanSource).toBe(
       [
@@ -193,14 +183,14 @@ describe('harvestSource', () => {
     const result = harvestFixture('harvestBlock.ts');
 
     expect(sectionBody(result.gloss, 'build')).toBe(
-      '> `export function build() {`\n\nBuilds the widget.\nTwice as fast as the old builder.',
+      'Builds the widget.\nTwice as fast as the old builder.',
     );
     expect(result.cleanSource).toBe(
       ['// gloss', 'export function build() {', '  return 2;', '}', ''].join('\n'),
     );
   });
 
-  test('consecutive comment lines land as one entry under one anchor', () => {
+  test('consecutive comment lines land as one entry', () => {
     const result = harvestSource(
       'inline.ts',
       [
@@ -214,7 +204,7 @@ describe('harvestSource', () => {
     );
 
     expect(sectionBody(result.gloss, 'value')).toBe(
-      '> `export const value = 1;`\n\nfirst line of the note\nsecond line of the note',
+      'first line of the note\nsecond line of the note',
     );
     expect(result.moved).toHaveLength(2);
     expect(result.cleanSource).toBe('// gloss\nexport const value = 1;\n');
@@ -237,33 +227,9 @@ describe('harvestSource', () => {
     );
 
     expect(sectionBody(result.gloss, 'value')).toBe(
-      '> `export const value = 1;`\n\n\\## Type Conversions\ndates become ISO strings\n\\# Notes',
+      '\\## Type Conversions\ndates become ISO strings\n\\# Notes',
     );
     expect(result.gloss.sections.map((section) => section.symbol)).toEqual(['value']);
-  });
-
-  test('an anchor containing backticks gets a wider code fence', () => {
-    const result = harvestSource(
-      'inline.ts',
-      ['// the note', 'export const label = `a b`;', ''].join('\n'),
-      undefined,
-      'src/inline.ts',
-    );
-
-    expect(sectionBody(result.gloss, 'label')).toBe(
-      '> ``export const label = `a b`;``\n\nthe note',
-    );
-  });
-
-  test('an anchor that starts or ends with a backtick is padded inside its fence', () => {
-    const result = harvestSource(
-      'inline.ts',
-      ['const value = cond', '  // the note', '    ? `left`', '    : `right`;', ''].join('\n'),
-      undefined,
-      'src/inline.ts',
-    );
-
-    expect(sectionBody(result.gloss, 'value')).toBe('> `` ? `left` ``\n\nthe note');
   });
 
   test('a mid-line block comment is excised in place', () => {
@@ -278,12 +244,83 @@ describe('harvestSource', () => {
     expect(harvestableCount('inline.ts', result.cleanSource)).toBe(0);
   });
 
-  test('a jsx comment leaves an empty expression container behind', () => {
+  test('a jsx comment container is removed whole and anchors to what it labels', () => {
     const result = harvestFixture('component.tsx');
 
     expect(result.moved).toHaveLength(1);
-    expect(result.cleanSource).toContain('      {}\n');
+    expect(sectionBody(result.gloss, 'Panel')).toBe('- jsx note');
+    expect(result.cleanSource).not.toContain('{}');
+    expect(result.cleanSource).toContain('    <div>\n      <Badge label={label} />\n    </div>\n');
     expect(harvestableCount('test/fixtures/component.tsx', result.cleanSource)).toBe(0);
+  });
+
+  test('jsx label comments become compact bullets under the enclosing symbol', () => {
+    const result = harvestFixture('animation.tsx');
+
+    expect(sectionBody(result.gloss, 'SyncBurst')).toBe(
+      [
+        'Salesforce mark, drawn as a single path so the whole glyph strokes on as one unit',
+        '',
+        '- outer pulse ring',
+        '',
+        '- inner pulse ring, half a beat behind',
+      ].join('\n'),
+    );
+    expect(result.cleanSource).toBe(
+      [
+        '// gloss',
+        'export const SyncBurst = () => (',
+        '  <svg viewBox="0 0 48 48">',
+        '    <path className="mark" d="M12 24h24" />',
+        '    <circle className="pulse" r="18" />',
+        '    <circle className="pulse" r="18" />',
+        '  </svg>',
+        ');',
+        '',
+      ].join('\n'),
+    );
+  });
+
+  test('braces in argument position are an object literal and keep the in-place excision', () => {
+    const result = harvestSource(
+      'inline.tsx',
+      ['export const panel = render({/* the note */});', ''].join('\n'),
+      undefined,
+      'src/inline.tsx',
+    );
+
+    expect(sectionBody(result.gloss, 'panel')).toBe('- the note');
+    expect(result.cleanSource).toBe('// gloss\nexport const panel = render({});\n');
+  });
+
+  test('a comment above all code is preamble prose', () => {
+    const result = harvestFixture('barrel.ts');
+
+    expect(result.gloss.preamble).toBe(
+      [
+        'Import surface for the field map package: re-exports only, no logic of its own.',
+        '',
+        '- the appliers depend on the types above',
+      ].join('\n'),
+    );
+    expect(result.cleanSource).toBe(
+      ['// gloss:file', '', "export * from './types';", '', "export * from './appliers';", ''].join(
+        '\n',
+      ),
+    );
+  });
+
+  test('a comment longer than one compact line is filed as a paragraph, not a bullet', () => {
+    const long = 'this note runs past the compact limit, so it is filed as a paragraph instead';
+    const result = harvestSource(
+      'inline.ts',
+      [`// ${long}`, 'export const value = 1;', ''].join('\n'),
+      undefined,
+      'src/inline.ts',
+    );
+
+    expect(long.length).toBeGreaterThan(72);
+    expect(sectionBody(result.gloss, 'value')).toBe(long);
   });
 
   test('an existing section is appended to and its dagger is not duplicated', () => {
@@ -299,9 +336,7 @@ describe('harvestSource', () => {
       'src/inline.ts',
     );
 
-    expect(sectionBody(result.gloss, 'rate')).toBe(
-      'Prior note.\n\n> `export const rate = 0.5;`\n\na fresh note about the rate',
-    );
+    expect(sectionBody(result.gloss, 'rate')).toBe('Prior note.\n\n- a fresh note about the rate');
     expect(result.gloss.sections).toHaveLength(1);
     expect(result.cleanSource).toBe('// gloss\nexport const rate = 0.5;\n');
   });

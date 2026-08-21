@@ -31,6 +31,7 @@ const BLOCKING_ERROR_CODES: ResolverErrorCode[] = [
   'danglingMarker',
 ];
 
+const COMPACT_TEXT_LIMIT = 72;
 const GLOSS_DIRECTORY = '.gloss';
 const EVENTS_FILE = '.events.jsonl';
 const IGNORE_FILE = '.gitignore';
@@ -89,9 +90,10 @@ const locateComments = (source: SourceIndex, hits: CommentHit[]): LocatedComment
   let cursor = 0;
 
   for (const hit of hits) {
-    const pos = source.text.indexOf(hit.text, Math.max(cursor, lineStartOf(source, hit.startLine)));
+    const removed = hit.removalText ?? hit.text;
+    const pos = source.text.indexOf(removed, Math.max(cursor, lineStartOf(source, hit.startLine)));
     if (pos === -1) continue;
-    cursor = pos + hit.text.length;
+    cursor = pos + removed.length;
     located.push({ hit, pos, end: cursor });
   }
 
@@ -135,13 +137,6 @@ const groupAdjacent = (hits: CommentHit[]): CommentHit[][] => {
   return groups;
 };
 
-const codeSpan = (text: string): string => {
-  const longestRun = Math.max(0, ...[...text.matchAll(/`+/g)].map((match) => match[0].length));
-  const fence = '`'.repeat(longestRun + 1);
-  const pad = text.startsWith('`') || text.endsWith('`') ? ' ' : '';
-  return `${fence}${pad}${text}${pad}${fence}`;
-};
-
 // why: a harvested line starting with '#' would parse as gloss structure (h1 path header,
 // '##' symbol section) and fabricate sections naming no symbol; escape it at column 0.
 const escapeHeadings = (text: string): string =>
@@ -150,13 +145,18 @@ const escapeHeadings = (text: string): string =>
     .map((line) => (line.startsWith('#') ? `\\${line}` : line))
     .join('\n');
 
+// why: the symbol section is gloss's only validated binding — a quoted code line (like a line
+// number) rots silently and answers "where does this apply" with a syntactic proxy. Prose that
+// needs finer-than-symbol placement is load-bearing and belongs inline as '// why:'.
 const entryFor = (group: CommentHit[]): string => {
-  const body = group
-    .map((hit) => escapeHeadings(stripCommentMarkers(hit.text)))
-    .filter((text) => text !== '')
+  const text = group
+    .map((hit) => stripCommentMarkers(hit.text))
+    .filter((line) => line !== '')
     .join('\n');
-  const anchor = group[0].adjacentCode;
-  return anchor === undefined ? body : `> ${codeSpan(anchor)}\n\n${body}`.trimEnd();
+
+  if (text === '') return '';
+  if (!text.includes('\n') && text.length <= COMPACT_TEXT_LIMIT) return `- ${text}`;
+  return escapeHeadings(text);
 };
 
 const joinBlocks = (existing: string, addition: string): string =>
@@ -164,8 +164,12 @@ const joinBlocks = (existing: string, addition: string): string =>
 
 const withEntry = (doc: GlossDoc, group: CommentHit[]): GlossDoc => {
   const entry = entryFor(group);
+  if (entry === '') return doc;
+
   const symbol = group[0].enclosingSymbol;
-  if (symbol === undefined) return { ...doc, preamble: joinBlocks(doc.preamble, entry) };
+  if (symbol === undefined) {
+    return { ...doc, preamble: joinBlocks(doc.preamble, entry) };
+  }
 
   const existing = doc.sections.find((section) => section.symbol === symbol)?.body ?? '';
   return upsertSection(doc, symbol, joinBlocks(existing, entry));

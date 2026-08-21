@@ -144,4 +144,28 @@ describe('harvestable placement', () => {
     expect(hit.kind).toBe('harvestable');
     expect(hit.enclosingSymbol).toBe('Panel');
   });
+
+  test('a jsx label comment anchors to the element below it and carries its container', () => {
+    const parsedTsx = parseFixture('component.tsx');
+    const hit = hitStartingWith(parsedTsx.comments, 'jsx note');
+
+    expect(hit.adjacentCode).toBe('<Badge label={label} />');
+    expect(hit.removalText).toBe('{/* jsx note */}');
+  });
+
+  test('braces holding a comment in argument position are not a jsx container', () => {
+    const parsed = parseSource('inline.tsx', 'export const panel = render({/* the note */});\n');
+
+    expect(parsed.comments[0].removalText).toBeUndefined();
+    expect(parsed.comments[0].adjacentCode).toContain('render({');
+  });
+
+  test('a jsx attribute container keeps its braces', () => {
+    const parsed = parseSource(
+      'inline.tsx',
+      ['export const Row = () => <li data-note={/* the note */ 1} />;', ''].join('\n'),
+    );
+
+    expect(parsed.comments[0].removalText).toBeUndefined();
+  });
 });
