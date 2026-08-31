@@ -69,6 +69,19 @@ A config error (non-array, non-string entry, invalid regex, unparseable `package
 rather than degrading to no patterns — silently dropping a directive pattern would reclassify
 protected machine comments as harvestable and the next harvest would sweep them.
 
+Vendored trees are excluded by path. Enumeration otherwise skips only what `git check-ignore`
+skips, so a tracked-but-not-ours directory — a pinned upstream mirror, a generated client — gets
+harvested, editing files the repo forbids editing and filing upstream's commentary as our margin:
+
+```json
+{ "gloss": { "exclude": [".claude/skills"] } }
+```
+
+Entries are path prefixes, never regexes or globs, matched at the segment boundary (`vendor/skill`
+does not exclude `vendor/skills`). A leading `./` and trailing slashes normalize away; an empty
+entry throws rather than excluding the whole repo. Excludes apply to every surface — harvest,
+lint, check, fix.
+
 ## The sidecar
 
 Plain markdown, no frontmatter, no schema. An `# <source path>` h1, an optional file preamble, then

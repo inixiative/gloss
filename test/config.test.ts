@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { setRepoDirectives } from '../src/comments';
 import { loadRepoDirectives } from '../src/config';
+import { setRepoExcludes } from '../src/git';
 import { lintPaths } from '../src/lint';
 
 const MARKED_FILE = '/**\n * @codemap\n * kind: service\n */\nexport const value = 1;\n';
@@ -83,5 +84,76 @@ describe('loadRepoDirectives', () => {
     const root = repo({ 'package.json': '{ not json' });
 
     expect(() => loadRepoDirectives(root)).toThrow('not valid JSON');
+  });
+});
+
+describe('gloss.exclude', () => {
+  const roots: string[] = [];
+  const repo = (files: Record<string, string>): string => {
+    const root = makeRepo(files);
+    roots.push(root);
+    return root;
+  };
+
+  const HARVESTABLE = '// a plain comment\nexport const value = 1;\n';
+
+  afterEach(() => {
+    setRepoDirectives([]);
+    setRepoExcludes([]);
+  });
+
+  afterAll(() => {
+    for (const root of roots) rmSync(root, { recursive: true, force: true });
+  });
+
+  test('an excluded directory is not enumerated even though git tracks it', () => {
+    const root = repo({
+      'package.json': JSON.stringify({ gloss: { exclude: ['vendor/skills'] } }),
+      'vendor/skills/example.ts': HARVESTABLE,
+      'src/service.ts': HARVESTABLE,
+    });
+    loadRepoDirectives(root);
+
+    expect(lintPaths(root).map((violation) => violation.sourcePath)).toEqual(['src/service.ts']);
+  });
+
+  test('a trailing slash and a leading ./ normalize to the same prefix', () => {
+    const root = repo({
+      'package.json': JSON.stringify({ gloss: { exclude: ['./vendor/skills/'] } }),
+      'vendor/skills/example.ts': HARVESTABLE,
+    });
+    loadRepoDirectives(root);
+
+    expect(lintPaths(root)).toEqual([]);
+  });
+
+  test('a prefix stops at the path segment boundary', () => {
+    const root = repo({
+      'package.json': JSON.stringify({ gloss: { exclude: ['vendor/skill'] } }),
+      'vendor/skills/example.ts': HARVESTABLE,
+    });
+    loadRepoDirectives(root);
+
+    expect(lintPaths(root).map((violation) => violation.sourcePath)).toEqual([
+      'vendor/skills/example.ts',
+    ]);
+  });
+
+  test('a non-array value throws', () => {
+    const root = repo({ 'package.json': JSON.stringify({ gloss: { exclude: 'vendor' } }) });
+
+    expect(() => loadRepoDirectives(root)).toThrow('gloss.exclude');
+  });
+
+  test('a non-string entry throws with its index', () => {
+    const root = repo({ 'package.json': JSON.stringify({ gloss: { exclude: [7] } }) });
+
+    expect(() => loadRepoDirectives(root)).toThrow('entry 0 is not a string');
+  });
+
+  test('an empty entry throws rather than excluding the whole repo', () => {
+    const root = repo({ 'package.json': JSON.stringify({ gloss: { exclude: ['  '] } }) });
+
+    expect(() => loadRepoDirectives(root)).toThrow('entry 0 is empty');
   });
 });
