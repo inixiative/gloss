@@ -1,9 +1,18 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   findRepoRoot,
+  isEntryPath,
   runCheck,
   runCommand,
   runFix,
@@ -318,5 +327,46 @@ describe('runCommand', () => {
     expect(outcome.code).toBe(0);
     expect(outcome.watcher).toBeDefined();
     outcome.watcher?.close();
+  });
+});
+
+describe('isEntryPath', () => {
+  const dirs: string[] = [];
+  afterEach(() => {
+    for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
+
+  const linkedCli = (): { cli: string; link: string } => {
+    const dir = mkdtempSync(join(tmpdir(), 'gloss-bin-'));
+    dirs.push(dir);
+    const cli = join(dir, 'cli.js');
+    const binDir = join(dir, '.bin');
+    writeFileSync(cli, '', 'utf8');
+    mkdirSync(binDir);
+    const link = join(binDir, 'gloss');
+    symlinkSync(cli, link);
+    return { cli, link };
+  };
+
+  test('matches when the entry is the module itself', () => {
+    const { cli } = linkedCli();
+
+    expect(isEntryPath(cli, cli)).toBe(true);
+  });
+
+  // why: this is the whole bug — package managers invoke the bin through
+  // why: node_modules/.bin/gloss, a symlink, so a resolve()-only comparison
+  // why: never matched and every `bunx gloss` exited 0 having done nothing.
+  test('matches when the entry is the bin symlink pointing at the module', () => {
+    const { cli, link } = linkedCli();
+
+    expect(isEntryPath(link, cli)).toBe(true);
+  });
+
+  test('does not match an unrelated path, and tolerates a missing one', () => {
+    const { cli } = linkedCli();
+
+    expect(isEntryPath(join(cli, '..', 'other.js'), cli)).toBe(false);
+    expect(isEntryPath(undefined, cli)).toBe(false);
   });
 });

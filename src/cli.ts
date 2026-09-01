@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -281,9 +281,21 @@ export const main = (argv: string[] = process.argv.slice(2), cwd: string = proce
   if (watcher === undefined) process.exit(code);
 };
 
-const invokedAsBin = (): boolean => {
-  const entry = process.argv[1];
-  return entry !== undefined && resolve(entry) === fileURLToPath(import.meta.url);
+// why: package managers link the bin as node_modules/.bin/gloss -> dist/cli.js, and
+// why: resolve() does not follow symlinks — comparing it to import.meta.url made every
+// why: `bunx gloss` / `.bin/gloss` run a silent no-op that still exited 0.
+export const isEntryPath = (entry: string | undefined, selfPath: string): boolean => {
+  if (entry === undefined) return false;
+  const real = (path: string): string => {
+    try {
+      return realpathSync(path);
+    } catch {
+      return resolve(path);
+    }
+  };
+  return real(entry) === real(selfPath);
 };
+
+const invokedAsBin = (): boolean => isEntryPath(process.argv[1], fileURLToPath(import.meta.url));
 
 if (invokedAsBin()) main();
