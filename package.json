@@ -1,6 +1,6 @@
 {
   "name": "@inixiative/gloss",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Decluttered source: commentary lives in a per-file gloss margin, not the code — harvester, watcher, lint, and read tooling",
   "type": "module",
   "license": "MIT",
@@ -39,13 +39,13 @@
   "packageManager": "bun@1.4.2",
   "devDependencies": {
     "@biomejs/biome": "2.5.2",
-    "@inixiative/config": "^0.5.43",
+    "@inixiative/config": "^0.5.46",
     "@types/bun": "1.4.2",
     "lefthook": "2.1.9",
     "tsup": "8.5.1",
     "typescript": "6.0.3"
   },
   "peerDependencies": {
-    "typescript": ">=5.9.0"
+    "typescript": ">=6.0.0"
   }
 }
