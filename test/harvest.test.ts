@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { harvestPaths, harvestSource, sourceFilesUnder } from '../src/harvest';
 import { parseSource } from '../src/resolver';
-import { belongsInGloss, type GlossDoc } from '../src/types';
+import type { GlossDoc } from '../src/types';
 import { readFixture } from './fixture';
 
 const HARVEST_FIXTURES = [
@@ -29,7 +29,7 @@ const sectionBody = (doc: GlossDoc, symbol: string): string => {
 };
 
 const harvestableCount = (filePath: string, sourceText: string): number =>
-  parseSource(filePath, sourceText).comments.filter((comment) => belongsInGloss(comment.kind))
+  parseSource(filePath, sourceText).comments.filter((comment) => comment.kind === 'harvestable')
     .length;
 
 const REPO_FILES: Record<string, string> = {
@@ -380,35 +380,33 @@ describe('harvestSource', () => {
     );
   });
 
-  test('a why line moves into its symbol section without its label; directives and daggers stay', () => {
+  test('why lines, directives and daggers are left alone', () => {
     const result = harvestFixture('markers.ts');
 
-    expect(result.moved.map((hit) => hit.kind)).toEqual(['why']);
-    expect(result.cleanSource).toBe(
-      readFixture('markers.ts').replace('// why: hydration order is load-bearing here\n', ''),
-    );
-    expect(result.gloss.sections).toEqual([
-      { symbol: 'Widget', body: '- hydration order is load-bearing here' },
-    ]);
+    expect(result.moved).toEqual([]);
+    expect(result.cleanSource).toBe(readFixture('markers.ts'));
+    expect(result.gloss.sections).toEqual([]);
   });
 
-  test('a multi-line why inside a body joins one paragraph in its symbol section, labels dropped', () => {
+  test('never strips a why, even a multi-line one; only plain overflow moves', () => {
     const source = [
       'export function flush() {',
-      '  // why: the fsync must finish before we return:',
+      '  // why: the fsync must finish before we return.',
       '  // why: callers treat a return as a durable ack.',
+      '  /* why: block form */',
+      '  // and the long story behind it',
       '  return 1;',
       '}',
       '',
     ].join('\n');
     const result = harvestSource('src/flush.ts', source, undefined, 'src/flush.ts');
 
-    expect(result.cleanSource).toBe(
-      ['// gloss', 'export function flush() {', '  return 1;', '}', ''].join('\n'),
-    );
-    expect(sectionBody(result.gloss, 'flush')).toBe(
-      'the fsync must finish before we return:\ncallers treat a return as a durable ack.',
-    );
+    expect(result.moved.map((hit) => hit.kind)).toEqual(['harvestable']);
+    expect(result.cleanSource).toContain('// why: the fsync must finish before we return.');
+    expect(result.cleanSource).toContain('// why: callers treat a return as a durable ack.');
+    expect(result.cleanSource).toContain('/* why: block form */');
+    expect(result.cleanSource).not.toContain('the long story');
+    expect(sectionBody(result.gloss, 'flush')).toBe('- and the long story behind it');
   });
 
   test('a file whose markers are malformed is returned unchanged', () => {

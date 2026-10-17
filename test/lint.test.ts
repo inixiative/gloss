@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { lintPaths, lintSource } from '../src/lint';
+import { DEFAULT_WHY_MAX_LENGTH, lintPaths, lintSource, setWhyMaxLength } from '../src/lint';
 import type { LintViolation } from '../src/types';
 import { readFixture } from './fixture';
 
@@ -67,16 +67,60 @@ describe('lintSource', () => {
     expect(lintFixture('fileMarker.ts')).toEqual([]);
   });
 
-  test("a why line is flagged and pointed at its symbol's gloss section", () => {
-    const violations = lintFixture('markers.ts');
-
-    expect(kindsAt(violations)).toEqual([[6, 'forbiddenComment']]);
-    expect(violations[0].message).toContain("'// why:' on 'Widget' is not an inline form");
-    expect(violations[0].message).toContain("the 'Widget' gloss section");
-    expect(violations[0].message).toContain('gloss harvest test/fixtures/markers.ts');
-    expect(lintSource('inline.ts', '// why: at the top\n')[0]?.message).toContain(
-      'the file preamble',
+  test('a one-line why, own-line or trailing, yields nothing', () => {
+    expect(lintFixture('markers.ts')).toEqual([]);
+    expect(lintSource('inline.ts', 'export const a = 1; // why: wire format is fixed\n')).toEqual(
+      [],
     );
+    expect(
+      lintSource('inline.ts', '/* why: block form, one line */\nexport const a = 1;\n'),
+    ).toEqual([]);
+  });
+
+  test('a why spanning several lines is flagged once, at its first line', () => {
+    const source = [
+      'export function flush() {',
+      '  // why: the fsync must finish before we return:',
+      '  // why: callers treat a return as a durable ack.',
+      '  return 1;',
+      '}',
+      '',
+    ].join('\n');
+    const violations = lintSource('src/flush.ts', source);
+
+    expect(kindsAt(violations)).toEqual([[2, 'longWhy']]);
+    expect(violations[0].message).toContain('spans 2 lines');
+    expect(violations[0].message).toContain("the 'flush' gloss section");
+  });
+
+  test('a multi-line block why is flagged', () => {
+    const source = '/* why: first line\n   second line */\nexport const a = 1;\n';
+
+    expect(kindsAt(lintSource('src/a.ts', source))).toEqual([[1, 'longWhy']]);
+  });
+
+  test('a plain comment continuing a why is flagged as its overflow', () => {
+    const source = '// why: one reason\n// and three more paragraphs\nexport const a = 1;\n';
+    const violations = lintSource('src/a.ts', source);
+
+    expect(kindsAt(violations)).toEqual([[2, 'longWhy']]);
+    expect(violations[0].message).toContain("continues the '// why:' on line 1");
+  });
+
+  test('a why longer than the limit is flagged; the limit is configurable', () => {
+    const long = `// why: ${'x'.repeat(DEFAULT_WHY_MAX_LENGTH)}\nexport const a = 1;\n`;
+    const atLimit = `// why: ${'x'.repeat(DEFAULT_WHY_MAX_LENGTH - 8)}\nexport const a = 1;\n`;
+
+    expect(kindsAt(lintSource('src/a.ts', long))).toEqual([[1, 'longWhy']]);
+    expect(lintSource('src/a.ts', long)[0]?.message).toContain(`limit ${DEFAULT_WHY_MAX_LENGTH}`);
+    expect(lintSource('src/a.ts', atLimit)).toEqual([]);
+
+    setWhyMaxLength(20);
+    try {
+      expect(kindsAt(lintSource('src/a.ts', atLimit))).toEqual([[1, 'longWhy']]);
+    } finally {
+      setWhyMaxLength();
+    }
   });
 
   test('a comment-free file yields nothing', () => {
@@ -90,7 +134,7 @@ describe('lintPaths', () => {
     'src/one.ts': '// a note above the value\nexport const one = 1;\n',
     'src/two.ts': '// gloss: trailing\nexport const two = 2;\n',
     'src/clean.ts': '// gloss\nexport const clean = 3;\n',
-    'src/why.ts': '// why: load bearing\nexport const why = 3;\n',
+    'src/why.ts': '// why: load bearing\n// and a second line\nexport const why = 3;\n',
     'src/fixtures/skipped.ts': '// skipped note\nexport const skipped = 4;\n',
     'node_modules/pkg/index.ts': '// skipped note\nexport const dep = 5;\n',
   };
@@ -108,7 +152,7 @@ describe('lintPaths', () => {
     expect(violations.map((violation) => [violation.sourcePath, violation.kind])).toEqual([
       ['src/one.ts', 'forbiddenComment'],
       ['src/two.ts', 'markerTrailingContent'],
-      ['src/why.ts', 'forbiddenComment'],
+      ['src/why.ts', 'longWhy'],
     ]);
   });
 

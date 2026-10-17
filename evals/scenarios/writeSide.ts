@@ -3,6 +3,7 @@ import {
   changedPaths,
   type GradeContext,
   packageJsonFor,
+  longWhys,
   type Scenario,
   whyComments,
 } from '../harness';
@@ -36,19 +37,21 @@ const grade = ({ diff, readFile }: GradeContext) => {
 
   const comments = sourcePaths.flatMap((path) => parseSource(path, readFile(path) ?? '').comments);
   const prose = comments.filter((comment) => comment.kind === 'harvestable');
-  const addedWhys = whyComments(sourcePaths, readFile);
+  const whys = whyComments(sourcePaths, readFile);
+  const tooLong = longWhys(sourcePaths, readFile);
 
   const glossWritten = paths.some((path) => path.startsWith(GLOSS_PREFIX));
   const strayProse = paths.filter((path) => path.endsWith('.md') && !path.startsWith(GLOSS_PREFIX));
-  const reasoningLanded = prose.length > 0 || glossWritten;
+  const reasoningLanded = prose.length > 0 || whys.length > 0 || glossWritten;
 
   return {
-    pass: implemented && reasoningLanded && strayProse.length === 0 && addedWhys.length === 0,
+    pass: implemented && reasoningLanded && strayProse.length === 0 && tooLong.length === 0,
     notes: [
       `debounce implemented with a timer: ${implemented}`,
       `ordinary comments left for the harvester: ${prose.length}`,
       `wrote into ${GLOSS_PREFIX} directly: ${glossWritten}`,
-      `'// why:' lines added (the wrong answer): ${addedWhys.join(' / ') || 'none'}`,
+      `one-line '// why:' comments: ${whys.length}`,
+      `multi-line or over-long 'why:' (the wrong answer): ${tooLong.join(', ') || 'none'}`,
       `prose filed outside the gloss: ${strayProse.join(', ') || 'none'}`,
     ],
   };

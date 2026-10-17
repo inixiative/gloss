@@ -2,10 +2,9 @@
 ## Gloss — commentary lives in the margin, not in the code
 
 **Comments are almost never needed.** Name things so the code explains itself. When something must
-be said — a load-bearing constraint the code can't show — it goes in the gloss section of the symbol
-it constrains, not in the source.
+be said, it goes in the gloss section of the symbol it concerns, not in the source.
 
-Source files carry only two comment forms:
+Source files carry only these comment forms:
 
 1. Daggers — content-free existence markers, exact strings, trailing content is a lint error.
    `// gloss` on its own line above a declaration = that symbol has a gloss section.
@@ -13,9 +12,10 @@ Source files carry only two comment forms:
 2. Machine directives — `eslint-disable*`, `biome-ignore`, `@ts-expect-error`/`@ts-ignore`/
    `@ts-nocheck`, `prettier-ignore`, `/// <reference`, shebangs, license headers, `#__PURE__`,
    bundler magic comments, istanbul/c8, `@vitest-environment`, `sourceMappingURL`.
-
-**No `// why:` lines.** `gloss lint` flags them, and `gloss harvest` moves an existing one into its
-symbol's gloss section like any other comment.
+3. `// why:` — the rare exception, strongly discouraged: ONE short line (at most 120 characters),
+   only where the code can't make a constraint clear on its own. Aim for about 1% of comments. Never a
+   narrative: anything longer goes in the symbol's gloss section. `gloss lint` flags a `why:` that
+   runs past one line or the limit; the harvester never touches one.
 
 **Writing.** Write the section yourself: `src/foo.ts` glosses to `.gloss/src/foo.ts.md`, with an
 `# src/foo.ts` h1, an optional preamble, and one `## <symbol>` section per symbol (`Class.method` for

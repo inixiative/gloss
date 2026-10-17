@@ -1,6 +1,5 @@
 import * as ts from 'typescript';
 import {
-  belongsInGloss,
   type CommentHit,
   type CommentKind,
   DAGGER,
@@ -251,7 +250,7 @@ export const classifyComments = (
       startLine: comment.startLine,
       endLine: comment.endLine,
     };
-    if (!belongsInGloss(kind)) return hit;
+    if (kind !== 'harvestable' && kind !== 'why') return hit;
 
     const enclosingSymbol = enclosingSymbolFor(comment, ordered, sourceLines, codeLines);
     if (enclosingSymbol !== undefined) hit.enclosingSymbol = enclosingSymbol;
