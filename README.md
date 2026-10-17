@@ -56,7 +56,7 @@ export const resolveMarkerTarget = (source: ParsedSource, line: number) => { ...
 ```
 
 **`// why:`** — a comment whose text starts `why:` in any form (`//`, `///`, `/* */`, own-line or
-trailing). Lint allows one short line and flags the rest (`longWhy`): a `why:` spanning more than one
+trailing). Lint allows one short line and warns about the rest (`longWhy`, reported as a warning that never fails the run): a `why:` spanning more than one
 line (consecutive `why:` lines or a multi-line block), or one longer than 120 characters, measured
 over the whole comment. A plain comment on the line directly under an own-line `why:` is reported
 (`longWhy`) as its overflow. The harvester never moves a `why:`; it sweeps only the plain overflow,

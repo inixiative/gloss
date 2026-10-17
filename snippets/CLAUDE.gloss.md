@@ -14,8 +14,8 @@ Source files carry only these comment forms:
    bundler magic comments, istanbul/c8, `@vitest-environment`, `sourceMappingURL`.
 3. `// why:` — the rare exception, strongly discouraged: ONE short line (120 characters by default),
    only where the code can't make a constraint clear on its own. Aim for about 1% of comments. Never a
-   narrative: anything longer goes in the symbol's gloss section. `gloss lint` flags a `why:` that
-   runs past one line or the limit; the harvester never touches one.
+   narrative: anything longer goes in the symbol's gloss section. `gloss lint` warns about a `why:` that
+   runs past one line or the limit (a warning, never a failure); the harvester never touches one.
 
 **Writing.** Write the section yourself: `src/foo.ts` glosses to `.gloss/src/foo.ts.md`, with an
 `# src/foo.ts` h1, an optional preamble, and one `## <symbol>` section per symbol (`Class.method` for

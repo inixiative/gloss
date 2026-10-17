@@ -84,8 +84,10 @@ const repoRelative = (repoRoot: string, path: string): string =>
 
 const scopeOf = (paths: string[]): string[] | undefined => (paths.length > 0 ? paths : undefined);
 
+const WARNING_KINDS: ReadonlySet<LintViolation['kind']> = new Set(['longWhy']);
+
 const lintLine = (violation: LintViolation): string =>
-  `${violation.sourcePath}:${violation.line} ${violation.kind} ${violation.message}`;
+  `${violation.sourcePath}:${violation.line} ${WARNING_KINDS.has(violation.kind) ? 'warning ' : ''}${violation.kind} ${violation.message}`;
 
 const checkLine = (violation: CheckViolation): string => {
   const at = violation.line === undefined ? '' : `:${violation.line}`;
@@ -100,7 +102,7 @@ export const runLint = (repoRoot: string, paths: string[], log: Logger = writeLi
   }
 
   for (const violation of violations) log(lintLine(violation));
-  return 1;
+  return violations.some((violation) => !WARNING_KINDS.has(violation.kind)) ? 1 : 0;
 };
 
 export const runCheck = (repoRoot: string, paths: string[], log: Logger = writeLine): number => {
