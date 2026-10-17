@@ -18,6 +18,7 @@ import {
   runFix,
   runHarvest,
   runHistory,
+  runHook,
   runLint,
   runRead,
   runSetup,
@@ -264,6 +265,86 @@ describe('runSetup', () => {
     expect(lines).toContain('skipped:');
     expect(lines).toContain('  .gloss/README.md');
   });
+
+  test('--hooks adds the Claude Code hooks without asking', () => {
+    const root = repo();
+    const { lines, log } = collector();
+    const asked: string[] = [];
+
+    expect(runSetup(root, log, true, (question) => asked.push(question) > 0)).toBe(0);
+    expect(asked).toEqual([]);
+    expect(lines).toContain('  .claude/settings.json');
+    expect(read(root, '.claude/settings.json')).toContain('bunx gloss hook read');
+    expect(read(root, '.claude/settings.json')).toContain('bunx gloss hook grep');
+  });
+
+  test('--no-hooks leaves .claude alone and suggests the flag', () => {
+    const root = repo();
+    const { lines, log } = collector();
+
+    expect(runSetup(root, log, false, () => true)).toBe(0);
+    expect(existsSync(join(root, '.claude/settings.json'))).toBe(false);
+    expect(lines.some((line) => line.includes('gloss setup --hooks'))).toBe(true);
+  });
+
+  test('asks when no flag is given, and acts on the answer', () => {
+    const declined = repo();
+    runSetup(
+      declined,
+      () => {},
+      undefined,
+      () => false,
+    );
+    expect(existsSync(join(declined, '.claude/settings.json'))).toBe(false);
+
+    const accepted = repo();
+    const asked: string[] = [];
+    runSetup(
+      accepted,
+      () => {},
+      undefined,
+      (question) => asked.push(question) > 0,
+    );
+    expect(asked).toHaveLength(1);
+    expect(asked[0]).toContain('.claude/settings.json');
+    expect(read(accepted, '.claude/settings.json')).toContain('bunx gloss hook read');
+  });
+
+  test('does not ask again once the hooks are installed', () => {
+    const root = repo();
+    runSetup(root, () => {}, true);
+    const asked: string[] = [];
+    const { lines, log } = collector();
+
+    runSetup(root, log, undefined, (question) => asked.push(question) > 0);
+    expect(asked).toEqual([]);
+    expect(lines.some((line) => line.includes('gloss setup --hooks'))).toBe(false);
+  });
+});
+
+describe('runHook', () => {
+  test('logs the hook output for a glossed file and exits 0', () => {
+    const root = repo();
+    writeFiles(root, { [SOURCE]: GLOSSED_SOURCE, [MIRROR]: STALE_MIRROR });
+    const { lines, log } = collector();
+    const stdin = JSON.stringify({ tool_input: { file_path: join(root, SOURCE) } });
+
+    expect(runHook('read', root, log, () => stdin)).toBe(0);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('"hookEventName":"PostToolUse"');
+    expect(lines[0]).toContain('Alpha note.');
+  });
+
+  test('stays silent and exits 0 when stdin cannot be read', () => {
+    const { lines, log } = collector();
+
+    expect(
+      runHook('grep', '/', log, () => {
+        throw new Error('closed');
+      }),
+    ).toBe(0);
+    expect(lines).toEqual([]);
+  });
 });
 
 describe('runCommand', () => {
@@ -300,6 +381,48 @@ describe('runCommand', () => {
 
     expect(runCommand(['lint', '--nope'], root, () => {}).code).toBe(USAGE_EXIT_CODE);
     expect(runCommand(['read'], root, () => {}).code).toBe(USAGE_EXIT_CODE);
+  });
+
+  test('prints usage for a hook without a known event and for both hook flags at once', () => {
+    const root = repo();
+
+    expect(runCommand(['hook'], root, () => {}).code).toBe(USAGE_EXIT_CODE);
+    expect(runCommand(['hook', 'write'], root, () => {}).code).toBe(USAGE_EXIT_CODE);
+    expect(runCommand(['setup', '--hooks', '--no-hooks'], root, () => {}).code).toBe(
+      USAGE_EXIT_CODE,
+    );
+  });
+
+  test('dispatches setup --hooks and --no-hooks', () => {
+    const withHooks = repo();
+    const withoutHooks = repo();
+
+    expect(runCommand(['setup', '--hooks'], withHooks, () => {}).code).toBe(0);
+    expect(existsSync(join(withHooks, '.claude/settings.json'))).toBe(true);
+    expect(runCommand(['setup', '--no-hooks'], withoutHooks, () => {}).code).toBe(0);
+    expect(existsSync(join(withoutHooks, '.claude/settings.json'))).toBe(false);
+  });
+
+  test('runs a hook from stdin as the bin, ignoring a package.json that would break other commands', () => {
+    const root = repo();
+    writeFiles(root, {
+      [SOURCE]: GLOSSED_SOURCE,
+      [MIRROR]: STALE_MIRROR,
+      'package.json': '{ "gloss": { "directives": [42] } }',
+    });
+    const result = Bun.spawnSync(['bun', join(import.meta.dir, '../src/cli.ts'), 'hook', 'read'], {
+      cwd: root,
+      stdin: Buffer.from(JSON.stringify({ tool_input: { file_path: join(root, SOURCE) } })),
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr.toString()).toBe('');
+    const output = JSON.parse(result.stdout.toString()) as {
+      hookSpecificOutput: { additionalContext: string };
+    };
+    expect(output.hookSpecificOutput.additionalContext).toContain('Alpha note.');
   });
 
   test('dispatches lint against the repo root found from a nested cwd', () => {
