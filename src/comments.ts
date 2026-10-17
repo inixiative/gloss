@@ -241,6 +241,10 @@ export const classifyComments = (
   const codeLines = blankRanges(sourceText, comments).split('\n');
   const labelledCodeLines = blankRanges(sourceText, [...comments, ...containers]).split('\n');
   const ordered = [...symbols].sort((a, b) => a.startLine - b.startLine);
+  const holdsOnlyHarvestable = (container: JsxCommentContainer): boolean =>
+    comments
+      .filter((inner) => container.pos <= inner.pos && container.end >= inner.end)
+      .every((inner) => kindOf(inner) === 'harvestable');
 
   return comments.map((comment) => {
     const kind = kindOf(comment);
@@ -249,6 +253,8 @@ export const classifyComments = (
       text: comment.text,
       startLine: comment.startLine,
       endLine: comment.endLine,
+      commentStartLine: comment.startLine,
+      commentEndLine: comment.endLine,
       ownLine: comment.ownLine,
     };
     if (kind !== 'harvestable' && kind !== 'why') return hit;
@@ -257,7 +263,8 @@ export const classifyComments = (
     if (enclosingSymbol !== undefined) hit.enclosingSymbol = enclosingSymbol;
 
     const container = containerAround(containers, comment);
-    if (container === undefined) {
+    if (container !== undefined) hit.ownLine = startsOwnLine(sourceText, container.pos);
+    if (container === undefined || !holdsOnlyHarvestable(container)) {
       const adjacentCode = adjacentCodeFrom(comment.endLine, codeLines);
       if (adjacentCode !== undefined) hit.adjacentCode = adjacentCode;
       return hit;

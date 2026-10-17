@@ -137,6 +137,32 @@ describe('lintSource', () => {
     expect(lintSource('src/a.tsx', source)).toEqual([]);
   });
 
+  test('consecutive JSX whys form one multi-line why', () => {
+    const inline =
+      'export const A = () => (\n  <div>\n    {/* why: a */}\n    {/* why: b */}\n  </div>\n);\n';
+    const shared =
+      'export const A = () => (\n  <div>\n    {\n      // why: a\n      // why: b\n    }\n  </div>\n);\n';
+
+    expect(kindsAt(lintSource('src/a.tsx', inline))).toEqual([[3, 'longWhy']]);
+    expect(kindsAt(lintSource('src/a.tsx', shared))).toEqual([[4, 'longWhy']]);
+  });
+
+  test('a multi-line block why says to split the rest off; a why run says to drop the label', () => {
+    const block = lintSource('src/a.ts', '/* why: a\n   b */\nexport const a = 1;\n')[0]?.message;
+    const run = lintSource('src/a.ts', '// why: a\n// why: b\nexport const a = 1;\n')[0]?.message;
+
+    expect(block).toContain('split the rest off as a plain comment');
+    expect(run).toContain("drop the 'why:' label");
+  });
+
+  test('a run counts every line it covers', () => {
+    const source = '// why: a\n// more\n// why: b\nexport const a = 1;\n';
+
+    expect(lintSource('src/a.ts', source).find((v) => v.line === 1)?.message).toContain(
+      'spans 3 lines',
+    );
+  });
+
   test('a why longer than the limit is flagged; the limit is configurable', () => {
     const long = `// why: ${'x'.repeat(DEFAULT_WHY_MAX_LENGTH)}\nexport const a = 1;\n`;
     const atLimit = `// why: ${'x'.repeat(DEFAULT_WHY_MAX_LENGTH - 8)}\nexport const a = 1;\n`;

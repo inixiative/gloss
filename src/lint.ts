@@ -23,16 +23,18 @@ const sectionOf = (symbol: string | undefined): string =>
 const forbiddenCommentMessage = (sourcePath: string, symbol: string | undefined): string =>
   `comment on ${targetOf(symbol)} is not a '${DAGGER}' dagger, a one-line ${WHY} or a machine directive; the harvester relocates it into the gloss (run: gloss harvest ${sourcePath})`;
 
-const MOVE_HINT = `drop the extra lines' '${WHY_PREFIX}' label and run gloss harvest, which moves them and plants the dagger`;
+const RUN_HINT = `drop the '${WHY_PREFIX}' label from the extra lines and run gloss harvest, which moves them and plants the dagger`;
+const SPLIT_HINT =
+  'split the rest off as a plain comment under it and run gloss harvest, which moves that';
 
 const continuationMessage = (symbol: string | undefined, whyLine: number): string =>
   `comment continues the ${WHY} on line ${whyLine}; a ${WHY} is one short line, so the rest belongs in ${sectionOf(symbol)} (run: gloss harvest)`;
 
-const multiLineMessage = (symbol: string | undefined, lines: number): string =>
-  `${WHY} on ${targetOf(symbol)} spans ${lines} lines; keep it to one short line and move the rest to ${sectionOf(symbol)} (${MOVE_HINT})`;
+const multiLineMessage = (symbol: string | undefined, lines: number, hint: string): string =>
+  `${WHY} on ${targetOf(symbol)} spans ${lines} lines; keep it to one short line and move the rest to ${sectionOf(symbol)} (${hint})`;
 
 const tooLongMessage = (symbol: string | undefined, length: number): string =>
-  `${WHY} on ${targetOf(symbol)} is ${length} characters (limit ${whyMaxLength}); shorten it, or keep one short line and move the rest to ${sectionOf(symbol)} (${MOVE_HINT})`;
+  `${WHY} on ${targetOf(symbol)} is ${length} characters (limit ${whyMaxLength}); shorten it, or keep one short line and move the rest to ${sectionOf(symbol)} (${SPLIT_HINT})`;
 
 const violation = (
   sourcePath: string,
@@ -57,7 +59,11 @@ const commentViolations = (filePath: string, comments: CommentHit[]): LintViolat
           filePath,
           run.start.startLine,
           'longWhy',
-          multiLineMessage(run.start.enclosingSymbol, run.whyLines),
+          multiLineMessage(
+            run.start.enclosingSymbol,
+            run.end - run.start.commentStartLine + 1,
+            RUN_HINT,
+          ),
         ),
       );
     }
@@ -65,7 +71,8 @@ const commentViolations = (filePath: string, comments: CommentHit[]): LintViolat
   };
 
   for (const comment of comments) {
-    const extendsRun = run !== undefined && comment.ownLine && comment.startLine === run.end + 1;
+    const extendsRun =
+      run !== undefined && comment.ownLine && comment.commentStartLine === run.end + 1;
 
     if (comment.kind === 'why') {
       const lines = comment.text.split('\n').length;
@@ -76,15 +83,15 @@ const commentViolations = (filePath: string, comments: CommentHit[]): LintViolat
             filePath,
             comment.startLine,
             'longWhy',
-            multiLineMessage(comment.enclosingSymbol, lines),
+            multiLineMessage(comment.enclosingSymbol, lines, SPLIT_HINT),
           ),
         );
       } else if (extendsRun && run !== undefined) {
         run.whyLines += 1;
-        run.end = comment.endLine;
+        run.end = comment.commentEndLine;
       } else {
         closeRun();
-        if (comment.ownLine) run = { start: comment, whyLines: 1, end: comment.endLine };
+        if (comment.ownLine) run = { start: comment, whyLines: 1, end: comment.commentEndLine };
       }
 
       const length = comment.text.trim().length;
@@ -110,7 +117,7 @@ const commentViolations = (filePath: string, comments: CommentHit[]): LintViolat
           continuationMessage(comment.enclosingSymbol, run.start.startLine),
         ),
       );
-      run.end = comment.endLine;
+      run.end = comment.commentEndLine;
       continue;
     }
 

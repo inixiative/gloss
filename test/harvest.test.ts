@@ -409,6 +409,26 @@ describe('harvestSource', () => {
     expect(sectionBody(result.gloss, 'flush')).toBe('- and the long story behind it');
   });
 
+  test('a JSX container holding a why keeps the why; only the plain comment is removed', () => {
+    const source = [
+      'export const A = () => (',
+      '  <div>',
+      '    {',
+      '      // why: a',
+      '      // more',
+      '    }',
+      '  </div>',
+      ');',
+      '',
+    ].join('\n');
+    const result = harvestSource('src/a.tsx', source, undefined, 'src/a.tsx');
+
+    expect(result.cleanSource).toContain('// why: a');
+    expect(result.cleanSource).not.toContain('// more');
+    expect(sectionBody(result.gloss, 'A')).toBe('- more');
+    expect(parseSource('src/a.tsx', result.cleanSource).errors).toEqual([]);
+  });
+
   test('a file whose markers are malformed is returned unchanged', () => {
     const result = harvestFixture('harvestBlocked.ts');
 
