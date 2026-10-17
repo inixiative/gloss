@@ -166,8 +166,10 @@ export const blankRanges = (sourceText: string, ranges: SourceRange[]): string =
   return blanked;
 };
 
+const COMMENT_OPENER = /^(?:\/\/+|\/\*+)/;
+
 const isWhy = (comment: SourceComment): boolean =>
-  comment.isLineComment && comment.text.slice(2).trimStart().startsWith(WHY_PREFIX);
+  comment.text.replace(COMMENT_OPENER, '').trimStart().startsWith(WHY_PREFIX);
 
 const kindOf = (comment: SourceComment): CommentKind => {
   const marker = markerShapeOf(comment);

@@ -60,9 +60,10 @@ is unsound — this scenario is the tripwire for that.
 
 **`constraintFiling`** — does a genuine constraint reach the gloss section of the symbol it
 constrains? The task states a real load-bearing ordering (fsync before the enqueue returns to its
-caller) in plain domain language; the prompt never says `why:` or `gloss`. Passes if the fsync is
-implemented, the constraint is stated in a section of `.gloss/src/retryQueue.ts.md`, `gloss check`
-is clean (the dagger and the section pair up), and no `// why:` line was added. An inline
+caller) in plain domain language; the prompt never says `why:` or `gloss`. The grader first runs
+the harvest a pre-commit hook would, then passes if the fsync is implemented, the constraint is
+stated in the `createRetryQueue` section of `.gloss/src/retryQueue.ts.md` (written directly or swept
+from an ordinary comment), `gloss check` is clean, and no `why:` comment was added in any form. An inline
 `// why:` is the wrong answer; dropping the constraint fails too. (This replaces `whyFiling`, which
 graded the retired rule that constraints belong inline as `// why:`.)
 

@@ -1,11 +1,10 @@
 import { parseSource } from '../../src/index';
 import {
-  addedLines,
   changedPaths,
   type GradeContext,
   packageJsonFor,
   type Scenario,
-  whyTexts,
+  whyComments,
 } from '../harness';
 
 const SOURCE_PATH = 'src/debounce.ts';
@@ -37,7 +36,7 @@ const grade = ({ diff, readFile }: GradeContext) => {
 
   const comments = sourcePaths.flatMap((path) => parseSource(path, readFile(path) ?? '').comments);
   const prose = comments.filter((comment) => comment.kind === 'harvestable');
-  const addedWhys = whyTexts(addedLines(diff));
+  const addedWhys = whyComments(sourcePaths, readFile);
 
   const glossWritten = paths.some((path) => path.startsWith(GLOSS_PREFIX));
   const strayProse = paths.filter((path) => path.endsWith('.md') && !path.startsWith(GLOSS_PREFIX));

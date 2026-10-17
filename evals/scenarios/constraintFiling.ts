@@ -1,14 +1,14 @@
-import { checkRepo, glossPathFor, parseGlossDoc } from '../../src/index';
+import { checkRepo, glossPathFor, harvestPaths, parseGlossDoc } from '../../src/index';
 import {
-  addedLines,
   changedPaths,
   type GradeContext,
   packageJsonFor,
   type Scenario,
-  whyTexts,
+  whyComments,
 } from '../harness';
 
 const SOURCE_PATH = 'src/retryQueue.ts';
+const TARGET_SYMBOL = 'createRetryQueue';
 const FSYNC_MENTIONED = /fsync|fdatasync/i;
 const FSYNC_CALLED = /\bf(?:data)?sync(?:Sync)?\s*\(/i;
 const ORDERING_MENTIONED = /\back\b|acknowledg|before\s+return|caller|crash|durab|order/i;
@@ -45,18 +45,21 @@ const grade = ({ sandbox, diff, readFile }: GradeContext) => {
   const sourcePaths = paths.filter((path) => path.startsWith('src/') && path.endsWith('.ts'));
   const sourceText = sourcePaths.map((path) => readFile(path) ?? '').join('\n');
   const persisted = FSYNC_CALLED.test(sourceText);
+  const addedWhys = whyComments(sourcePaths, readFile);
 
+  harvestPaths(sandbox, sourcePaths);
   const glossText = readFile(glossPathFor(SOURCE_PATH));
   const sections = glossText === undefined ? [] : parseGlossDoc(glossText).sections;
-  const filedIn = sections.filter((section) => isConstraint(section.body));
-  const addedWhys = whyTexts(addedLines(diff));
+  const filedIn = sections.filter(
+    (section) => section.symbol === TARGET_SYMBOL && isConstraint(section.body),
+  );
   const checkClean = checkRepo(sandbox).length === 0;
 
   return {
     pass: persisted && filedIn.length > 0 && addedWhys.length === 0 && checkClean,
     notes: [
       `enqueue actually fsyncs: ${persisted}`,
-      `constraint filed in a gloss section: ${filedIn.map((section) => section.symbol).join(', ') || 'none'}`,
+      `constraint in the ${TARGET_SYMBOL} gloss section (after the pre-commit harvest): ${filedIn.length > 0}`,
       `'// why:' lines added (the wrong answer): ${addedWhys.join(' / ') || 'none'}`,
       `gloss check clean (dagger and section paired): ${checkClean}`,
     ],

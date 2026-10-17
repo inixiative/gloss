@@ -2,7 +2,8 @@
 
 ## runCommand
 
-the hook runs on every agent Read/Grep; it must not depend on git or throw on a bad package.json.
+the hook runs on every agent Read/Grep; it must not depend on git or throw on a bad package.json,
+which is why the hook branch runs before `findRepoRoot` and `loadRepoDirectives`.
 
 ## isEntryPath
 

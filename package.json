@@ -47,10 +47,5 @@
   },
   "peerDependencies": {
     "typescript": ">=6.0.0"
-  },
-  "gloss": {
-    "exclude": [
-      "test/fixtures"
-    ]
   }
 }
