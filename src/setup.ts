@@ -12,6 +12,7 @@ export type SetupReport = {
   updated: string[];
   skipped: string[];
   suggestions: string[];
+  blockDiff: string[];
 };
 
 const CLAUDE_SNIPPET_URL = new URL('../snippets/CLAUDE.gloss.md', import.meta.url);
@@ -27,9 +28,8 @@ const GLOSS_README_BODY = `# .gloss
 
 Margin commentary for this repo's source: \`src/foo.ts\` glosses to \`.gloss/src/foo.ts.md\`, an
 \`# src/foo.ts\` h1 plus one \`## <symbol>\` section per symbol, and a \`// gloss\` dagger in the source
-means a section exists here. It is advisory past-session commentary — it may be stale or wrong, so
-trust the code and its \`// why:\` lines over it — and \`gloss read <file> [symbol]\` prints a section
-with the staleness git derives for it.
+means a section exists here. \`gloss read <file> [symbol]\` prints a section with the staleness git
+derives for it. The rule for what goes here and how to read it is the gloss block in \`CLAUDE.md\`.
 `;
 
 const SUGGESTIONS = [
@@ -40,6 +40,7 @@ const SUGGESTIONS = [
 
 export type SetupOptions = {
   claudeHooks?: boolean;
+  updateBlock?: boolean;
 };
 
 const HOOKS_OFFER = `Add the gloss Read/Grep hooks to ${CLAUDE_SETTINGS_FILE} so agents see the margin as they read: \`gloss setup --hooks\`.`;
@@ -49,18 +50,69 @@ const hooksByHand = (): string =>
 
 export const readClaudeSnippet = (): string => readFileSync(CLAUDE_SNIPPET_URL, 'utf8').trimEnd();
 
+type SnippetBlock = { start: number; end: number; closed: boolean; text: string };
+
+const findSnippetBlock = (existing: string): SnippetBlock | undefined => {
+  const start = existing.indexOf(BEGIN_MARKER);
+  if (start === -1) return undefined;
+  const endIndex = existing.indexOf(END_MARKER, start);
+  const end = endIndex === -1 ? existing.length : endIndex + END_MARKER.length;
+  return { start, end, closed: endIndex !== -1, text: existing.slice(start, end) };
+};
+
 const spliceSnippetBlock = (existing: string, snippet: string): string => {
-  const beginIndex = existing.indexOf(BEGIN_MARKER);
-  if (beginIndex === -1) {
+  const block = findSnippetBlock(existing);
+  if (block === undefined) {
     const head = existing.trimEnd();
     return head.length === 0 ? `${snippet}\n` : `${head}\n\n${snippet}\n`;
   }
-
-  const endIndex = existing.indexOf(END_MARKER, beginIndex);
-  if (endIndex === -1) return `${existing.slice(0, beginIndex)}${snippet}\n`;
-
-  return `${existing.slice(0, beginIndex)}${snippet}${existing.slice(endIndex + END_MARKER.length)}`;
+  const tail = block.closed ? existing.slice(block.end) : '\n';
+  return `${existing.slice(0, block.start)}${snippet}${tail}`;
 };
+
+const lineDiff = (before: string[], after: string[]): string[] => {
+  const common = Array.from({ length: before.length + 1 }, () =>
+    new Array<number>(after.length + 1).fill(0),
+  );
+  const at = (i: number, j: number): number => common[i]?.[j] ?? 0;
+  for (let i = before.length - 1; i >= 0; i -= 1) {
+    for (let j = after.length - 1; j >= 0; j -= 1) {
+      const row = common[i];
+      if (row === undefined) continue;
+      row[j] = before[i] === after[j] ? at(i + 1, j + 1) + 1 : Math.max(at(i + 1, j), at(i, j + 1));
+    }
+  }
+
+  const lines: string[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < before.length || j < after.length) {
+    if (i < before.length && j < after.length && before[i] === after[j]) {
+      i += 1;
+      j += 1;
+    } else if (i < before.length && (j === after.length || at(i + 1, j) >= at(i, j + 1))) {
+      lines.push(`- ${before[i]}`);
+      i += 1;
+    } else {
+      lines.push(`+ ${after[j]}`);
+      j += 1;
+    }
+  }
+  return lines;
+};
+
+export const claudeBlockDiff = (
+  repoRoot: string,
+  snippet: string = readClaudeSnippet(),
+): string[] => {
+  const claudePath = join(repoRoot, CLAUDE_FILE);
+  if (!existsSync(claudePath)) return [];
+  const block = findSnippetBlock(readFileSync(claudePath, 'utf8'));
+  if (block === undefined || block.text === snippet) return [];
+  return lineDiff(block.text.split('\n'), snippet.split('\n'));
+};
+
+const KEPT_BLOCK_SUGGESTION = `The gloss block in ${CLAUDE_FILE} differs from the shipped snippet and was kept; \`gloss setup --update-block\` replaces it.`;
 
 const ensureGlossReadme = (repoRoot: string, report: SetupReport): void => {
   const readmePath = join(repoRoot, GLOSS_README);
@@ -74,11 +126,23 @@ const ensureGlossReadme = (repoRoot: string, report: SetupReport): void => {
   report.created.push(GLOSS_README);
 };
 
-const ensureClaudeBlock = (repoRoot: string, snippet: string, report: SetupReport): void => {
+const ensureClaudeBlock = (
+  repoRoot: string,
+  snippet: string,
+  updateBlock: boolean,
+  report: SetupReport,
+): void => {
   const claudePath = join(repoRoot, CLAUDE_FILE);
   if (!existsSync(claudePath)) {
     writeFileSync(claudePath, `${snippet}\n`, 'utf8');
     report.created.push(CLAUDE_FILE);
+    return;
+  }
+
+  report.blockDiff = claudeBlockDiff(repoRoot, snippet);
+  if (report.blockDiff.length > 0 && !updateBlock) {
+    report.skipped.push(CLAUDE_FILE);
+    report.suggestions.push(KEPT_BLOCK_SUGGESTION);
     return;
   }
 
@@ -102,10 +166,16 @@ const ensureClaudeHooks = (repoRoot: string, report: SetupReport): void => {
 };
 
 export const setup = (repoRoot: string, options: SetupOptions = {}): SetupReport => {
-  const report: SetupReport = { created: [], updated: [], skipped: [], suggestions: [] };
+  const report: SetupReport = {
+    created: [],
+    updated: [],
+    skipped: [],
+    suggestions: [],
+    blockDiff: [],
+  };
 
   ensureGlossReadme(repoRoot, report);
-  ensureClaudeBlock(repoRoot, readClaudeSnippet(), report);
+  ensureClaudeBlock(repoRoot, readClaudeSnippet(), options.updateBlock === true, report);
   if (options.claudeHooks === true) ensureClaudeHooks(repoRoot, report);
   else if (options.claudeHooks === undefined && !hasClaudeHooks(repoRoot)) {
     report.suggestions.push(HOOKS_OFFER);

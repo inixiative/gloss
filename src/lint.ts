@@ -2,11 +2,11 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { sourceFilesUnder } from './harvest';
 import { parseSource } from './resolver';
-import { DAGGER, type LintViolation, WHY_PREFIX } from './types';
+import { DAGGER, type LintViolation } from './types';
 
 const forbiddenCommentMessage = (sourcePath: string, symbol: string | undefined): string => {
   const target = symbol === undefined ? 'this file' : `'${symbol}'`;
-  return `comment on ${target} is not '// ${WHY_PREFIX}', a '${DAGGER}' dagger or a machine directive; the harvester relocates it into the gloss (run: gloss harvest ${sourcePath})`;
+  return `comment on ${target} is not a '${DAGGER}' dagger or a machine directive; the harvester relocates it into the gloss (run: gloss harvest ${sourcePath})`;
 };
 
 export const lintSource = (filePath: string, sourceText: string): LintViolation[] => {

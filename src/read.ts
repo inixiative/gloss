@@ -3,8 +3,7 @@ import { glossPathFor, parseGlossDoc } from './glossFile';
 import { fileStaleness, readTextFile, sectionStaleness } from './staleness';
 import type { Staleness } from './types';
 
-const EPISTEMICS_FOOTER =
-  'advisory past-session commentary — trust the code and // why: lines first';
+const EPISTEMICS_FOOTER = 'advisory past-session commentary — trust the code first';
 
 const dayOf = (isoDate: string): string => isoDate.slice(0, 10);
 

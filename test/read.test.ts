@@ -8,7 +8,7 @@ import { commitFiles, createRepo, destroyRepo, shallowCloneOf } from './tempRepo
 const SOURCE = 'src/mod.ts';
 const MIRROR = '.gloss/src/mod.ts.md';
 
-const FOOTER = 'advisory past-session commentary — trust the code and // why: lines first';
+const FOOTER = 'advisory past-session commentary — trust the code first';
 
 const SOURCE_V1 = `export const alpha = () => {
   return 1;

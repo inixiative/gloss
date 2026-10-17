@@ -38,6 +38,12 @@ export { sectionHistory } from './history';
 export { lintPaths, lintSource } from './lint';
 export { renderGloss } from './read';
 export { parseSource } from './resolver';
-export { readClaudeSnippet, type SetupOptions, type SetupReport, setup } from './setup';
+export {
+  claudeBlockDiff,
+  readClaudeSnippet,
+  type SetupOptions,
+  type SetupReport,
+  setup,
+} from './setup';
 export { fileStaleness, sectionStaleness } from './staleness';
 export * from './types';

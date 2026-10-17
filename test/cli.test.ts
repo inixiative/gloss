@@ -24,6 +24,7 @@ import {
   runSetup,
   USAGE_EXIT_CODE,
 } from '../src/cli';
+import { readClaudeSnippet, setup } from '../src/setup';
 import { commitAll, createRepo, destroyRepo, git, writeFiles } from './tempRepo';
 
 const SOURCE = 'src/mod.ts';
@@ -42,6 +43,14 @@ const RENAMED_SOURCE = ['// gloss', 'export const beta = () => 1;', ''].join('\n
 const STALE_MIRROR = ['# src/mod.ts', '', '## alpha', '', 'Alpha note.', ''].join('\n');
 
 const GLOSSED_SOURCE = ['// gloss', 'export const alpha = () => 1;', ''].join('\n');
+
+const CUSTOMISED_BLOCK = [
+  '<!-- gloss:begin -->',
+  '## Gloss',
+  '',
+  'Our own ruling: no comments at all.',
+  '<!-- gloss:end -->',
+].join('\n');
 
 const roots: string[] = [];
 
@@ -271,7 +280,7 @@ describe('runSetup', () => {
     const { lines, log } = collector();
     const asked: string[] = [];
 
-    expect(runSetup(root, log, true, (question) => asked.push(question) > 0)).toBe(0);
+    expect(runSetup(root, log, { hooks: true }, (question) => asked.push(question) > 0)).toBe(0);
     expect(asked).toEqual([]);
     expect(lines).toContain('  .claude/settings.json');
     expect(read(root, '.claude/settings.json')).toContain('.bin/gloss\\" hook read');
@@ -283,7 +292,7 @@ describe('runSetup', () => {
     const { lines, log } = collector();
     const asked: string[] = [];
 
-    expect(runSetup(root, log, false, (question) => asked.push(question) > 0)).toBe(0);
+    expect(runSetup(root, log, { hooks: false }, (question) => asked.push(question) > 0)).toBe(0);
     expect(asked).toEqual([]);
     expect(existsSync(join(root, '.claude/settings.json'))).toBe(false);
     expect(lines.some((line) => line.includes('gloss setup --hooks'))).toBe(false);
@@ -293,7 +302,7 @@ describe('runSetup', () => {
     const root = repo();
     const { lines, log } = collector();
 
-    runSetup(root, log, undefined, () => false);
+    runSetup(root, log, {}, () => false);
     expect(existsSync(join(root, '.claude/settings.json'))).toBe(false);
     expect(lines.some((line) => line.includes('gloss setup --hooks'))).toBe(true);
   });
@@ -303,7 +312,7 @@ describe('runSetup', () => {
     runSetup(
       declined,
       () => {},
-      undefined,
+      {},
       () => false,
     );
     expect(existsSync(join(declined, '.claude/settings.json'))).toBe(false);
@@ -313,7 +322,7 @@ describe('runSetup', () => {
     runSetup(
       accepted,
       () => {},
-      undefined,
+      {},
       (question) => asked.push(question) > 0,
     );
     expect(asked).toHaveLength(1);
@@ -323,13 +332,123 @@ describe('runSetup', () => {
 
   test('does not ask again once the hooks are installed', () => {
     const root = repo();
-    runSetup(root, () => {}, true);
+    runSetup(root, () => {}, { hooks: true });
     const asked: string[] = [];
     const { lines, log } = collector();
 
-    runSetup(root, log, undefined, (question) => asked.push(question) > 0);
+    runSetup(root, log, {}, (question) => asked.push(question) > 0);
     expect(asked).toEqual([]);
     expect(lines.some((line) => line.includes('gloss setup --hooks'))).toBe(false);
+  });
+
+  test('appends the block to a CLAUDE.md that has none, keeping what was there', () => {
+    const root = repo();
+    writeFiles(root, { 'CLAUDE.md': '# Agent guide\n' });
+    const { lines, log } = collector();
+
+    runSetup(root, log, { hooks: false });
+    expect(read(root, 'CLAUDE.md')).toBe(`# Agent guide\n\n${readClaudeSnippet()}\n`);
+    expect(lines).toContain('updated:');
+    expect(lines.some((line) => line.includes('differs from the shipped snippet'))).toBe(false);
+  });
+
+  test('leaves an identical block alone without asking', () => {
+    const root = repo();
+    runSetup(root, () => {}, { hooks: false });
+    const before = read(root, 'CLAUDE.md');
+    const asked: string[] = [];
+    const { lines, log } = collector();
+
+    runSetup(root, log, { hooks: false }, (question) => asked.push(question) > 0);
+    expect(asked).toEqual([]);
+    expect(read(root, 'CLAUDE.md')).toBe(before);
+    expect(lines.some((line) => line.includes('differs from the shipped snippet'))).toBe(false);
+  });
+
+  test('keeps a customised block when the replace prompt is declined, and reports the difference', () => {
+    const root = repo();
+    writeFiles(root, { 'CLAUDE.md': `# Guide\n\n${CUSTOMISED_BLOCK}\n\nAfter.\n` });
+    const before = read(root, 'CLAUDE.md');
+    const asked: Array<[string, boolean]> = [];
+    const { lines, log } = collector();
+
+    runSetup(root, log, { hooks: false }, (question, defaultYes) => {
+      asked.push([question, defaultYes]);
+      return false;
+    });
+    expect(read(root, 'CLAUDE.md')).toBe(before);
+    expect(asked).toHaveLength(1);
+    expect(asked[0]?.[0]).toContain('customised gloss block');
+    expect(asked[0]?.[1]).toBe(false);
+    expect(lines).toContain('  - Our own ruling: no comments at all.');
+    expect(lines.some((line) => line.startsWith('  + **Comments are almost never needed.**'))).toBe(
+      true,
+    );
+    expect(lines.some((line) => line.includes('gloss setup --update-block'))).toBe(true);
+    expect(lines).toContain('skipped:');
+  });
+
+  test('replaces a customised block when the prompt is accepted', () => {
+    const root = repo();
+    writeFiles(root, { 'CLAUDE.md': `# Guide\n\n${CUSTOMISED_BLOCK}\n\nAfter.\n` });
+
+    runSetup(
+      root,
+      () => {},
+      { hooks: false },
+      () => true,
+    );
+    expect(read(root, 'CLAUDE.md')).toBe(`# Guide\n\n${readClaudeSnippet()}\n\nAfter.\n`);
+  });
+
+  test('--update-block replaces a customised block without asking', () => {
+    const root = repo();
+    writeFiles(root, { 'CLAUDE.md': `# Guide\n\n${CUSTOMISED_BLOCK}\n` });
+    const asked: string[] = [];
+    const { lines, log } = collector();
+
+    runSetup(
+      root,
+      log,
+      { hooks: false, updateBlock: true },
+      (question) => asked.push(question) > 0,
+    );
+    expect(asked).toEqual([]);
+    expect(read(root, 'CLAUDE.md')).toBe(`# Guide\n\n${readClaudeSnippet()}\n`);
+    expect(lines).toContain('updated:');
+    expect(lines).toContain('  - Our own ruling: no comments at all.');
+  });
+
+  test('treats a begin marker with no end marker as a customised block', () => {
+    const root = repo();
+    writeFiles(root, { 'CLAUDE.md': '# Guide\n\n<!-- gloss:begin -->\nhalf a block\n' });
+    const before = read(root, 'CLAUDE.md');
+
+    runSetup(
+      root,
+      () => {},
+      { hooks: false },
+      () => false,
+    );
+    expect(read(root, 'CLAUDE.md')).toBe(before);
+
+    runSetup(root, () => {}, { hooks: false, updateBlock: true });
+    expect(read(root, 'CLAUDE.md')).toBe(`# Guide\n\n${readClaudeSnippet()}\n`);
+  });
+
+  test('setup() keeps a customised block by default and returns its diff', () => {
+    const root = repo();
+    writeFiles(root, { 'CLAUDE.md': `${CUSTOMISED_BLOCK}\n` });
+
+    const kept = setup(root, { claudeHooks: false });
+    expect(read(root, 'CLAUDE.md')).toBe(`${CUSTOMISED_BLOCK}\n`);
+    expect(kept.skipped).toContain('CLAUDE.md');
+    expect(kept.blockDiff).toContain('- Our own ruling: no comments at all.');
+
+    const replaced = setup(root, { claudeHooks: false, updateBlock: true });
+    expect(replaced.updated).toContain('CLAUDE.md');
+    expect(read(root, 'CLAUDE.md')).toBe(`${readClaudeSnippet()}\n`);
+    expect(setup(root, { claudeHooks: false }).blockDiff).toEqual([]);
   });
 });
 
@@ -412,6 +531,16 @@ describe('runCommand', () => {
     expect(existsSync(join(withHooks, '.claude/settings.json'))).toBe(true);
     expect(runCommand(['setup', '--no-hooks'], withoutHooks, () => {}).code).toBe(0);
     expect(existsSync(join(withoutHooks, '.claude/settings.json'))).toBe(false);
+  });
+
+  test('dispatches setup --update-block', () => {
+    const root = repo();
+    writeFiles(root, { 'CLAUDE.md': `${CUSTOMISED_BLOCK}\n` });
+
+    expect(runCommand(['setup', '--no-hooks'], root, () => {}).code).toBe(0);
+    expect(read(root, 'CLAUDE.md')).toBe(`${CUSTOMISED_BLOCK}\n`);
+    expect(runCommand(['setup', '--no-hooks', '--update-block'], root, () => {}).code).toBe(0);
+    expect(read(root, 'CLAUDE.md')).toBe(`${readClaudeSnippet()}\n`);
   });
 
   test('runs a hook from stdin as the bin, ignoring a package.json that would break other commands', () => {

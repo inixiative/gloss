@@ -17,7 +17,7 @@ import { harvestPaths } from './harvest';
 import { sectionHistory } from './history';
 import { lintPaths } from './lint';
 import { renderGloss } from './read';
-import { setup } from './setup';
+import { claudeBlockDiff, setup } from './setup';
 import type { CheckViolation, LintViolation } from './types';
 import { type WatchHandle, watchGloss } from './watch';
 
@@ -37,19 +37,23 @@ const STAGED_FILES_ARGS = ['diff', '--cached', '--name-only', '--diff-filter=ACM
 const USAGE = [
   'usage: gloss <command> [paths]',
   '',
-  '  lint [paths]                       flag comments that are not // why:, a dagger or a directive',
+  '  lint [paths]                       flag comments that belong in the gloss',
   '  check [paths]                      audit daggers against gloss sections in both directions',
   '  fix [paths]                        repair renamed symbols, moved mirrors and header paths',
   '  harvest [paths] [--staged]         sweep harvestable comments into the gloss, plant daggers',
   '  read <file> [symbol]               print the gloss with its derived staleness headers',
   '  history <file> [symbol]            print the changelog of a gloss file or one section',
   '  watch [paths] [--debounce <ms>]    harvest on save, debounced',
-  '  setup [--hooks | --no-hooks]       create .gloss/, install the CLAUDE.md block, offer the Claude Code hooks',
+  '  setup [--hooks | --no-hooks] [--update-block]',
+  '                                     create .gloss/, install the CLAUDE.md block, offer the Claude Code hooks',
   '  hook <read|grep>                   Claude Code PostToolUse hook: gloss context for a Read or Grep',
 ];
 
 const HOOKS_QUESTION =
   'Add the gloss Read/Grep hooks to .claude/settings.json so agents see the margin as they read?';
+const BLOCK_QUESTION = 'Replace the customised gloss block in CLAUDE.md with the shipped snippet?';
+const BLOCK_DIFF_TITLE =
+  'CLAUDE.md gloss block differs from the shipped snippet (- yours, + shipped):';
 const HOOK_DEBUG_ENV = 'GLOSS_HOOK_DEBUG';
 
 export type Logger = (line: string) => void;
@@ -204,33 +208,48 @@ const logGroup = (log: Logger, title: string, entries: string[]): void => {
   for (const entry of entries) log(`  ${entry}`);
 };
 
-export type Confirm = (question: string) => boolean;
+export type Confirm = (question: string, defaultYes: boolean) => boolean;
 
 const isInteractive = (): boolean => process.stdin.isTTY === true && process.stdout.isTTY === true;
 
-const promptYesNo: Confirm = (question) => {
+const promptYesNo: Confirm = (question, defaultYes) => {
   if (!isInteractive()) return false;
-  process.stdout.write(`${question} [Y/n] `);
+  process.stdout.write(`${question} ${defaultYes ? '[Y/n]' : '[y/N]'} `);
   try {
     const buffer = Buffer.alloc(256);
     const bytes = readSync(0, buffer, 0, buffer.length, null);
     if (bytes === 0) return false;
     const answer = buffer.toString('utf8', 0, bytes).trim().toLowerCase();
-    return answer === '' || answer.startsWith('y');
+    return answer === '' ? defaultYes : answer.startsWith('y');
   } catch {
     return false;
   }
 };
 
+export type SetupFlags = {
+  hooks?: boolean;
+  updateBlock?: boolean;
+};
+
 export const runSetup = (
   repoRoot: string,
   log: Logger = writeLine,
-  hooks?: boolean,
+  flags: SetupFlags = {},
   confirm: Confirm = promptYesNo,
 ): number => {
-  const accepted = hooks === undefined && !hasClaudeHooks(repoRoot) && confirm(HOOKS_QUESTION);
+  const blockDiff = claudeBlockDiff(repoRoot);
+  if (blockDiff.length > 0) {
+    log(BLOCK_DIFF_TITLE);
+    for (const line of blockDiff) log(`  ${line}`);
+  }
+  const updateBlock =
+    flags.updateBlock === true || (blockDiff.length > 0 && confirm(BLOCK_QUESTION, false));
+
+  const { hooks } = flags;
+  const accepted =
+    hooks === undefined && !hasClaudeHooks(repoRoot) && confirm(HOOKS_QUESTION, true);
   const claudeHooks = hooks ?? (accepted ? true : undefined);
-  const report = setup(repoRoot, { claudeHooks });
+  const report = setup(repoRoot, { claudeHooks, updateBlock });
   logGroup(log, 'created', report.created);
   logGroup(log, 'updated', report.updated);
   logGroup(log, 'skipped', report.skipped);
@@ -273,6 +292,7 @@ type CommandLine = {
   staged: boolean;
   debounceMs?: number;
   hooks?: boolean;
+  updateBlock: boolean;
 };
 
 const parseCommandLine = (argv: string[]): CommandLine | undefined => {
@@ -284,6 +304,7 @@ const parseCommandLine = (argv: string[]): CommandLine | undefined => {
         debounce: { type: 'string' },
         hooks: { type: 'boolean' },
         'no-hooks': { type: 'boolean' },
+        'update-block': { type: 'boolean', default: false },
       },
       allowPositionals: true,
     });
@@ -298,6 +319,7 @@ const parseCommandLine = (argv: string[]): CommandLine | undefined => {
       staged: values.staged === true,
       debounceMs,
       hooks,
+      updateBlock: values['update-block'] === true,
     };
   } catch {
     return undefined;
@@ -343,7 +365,9 @@ export const runCommand = (
     case 'watch':
       return { code: 0, watcher: runWatch(repoRoot, paths, line.debounceMs, log) };
     case 'setup':
-      return { code: runSetup(repoRoot, log, line.hooks) };
+      return {
+        code: runSetup(repoRoot, log, { hooks: line.hooks, updateBlock: line.updateBlock }),
+      };
     default:
       return { code: runUsage(log) };
   }
