@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
-import { readClaudeSnippet } from '../src/index';
+import { parseSource, readClaudeSnippet } from '../src/index';
 
 const REPO_ROOT = resolve(import.meta.dir, '..');
 
@@ -33,27 +33,6 @@ const GIT_CONFIG: [string, string][] = [
 
 const DIFF_ADDED_PATH = /^\+\+\+ b\/(.+)$/;
 const DIFF_REMOVED_PATH = /^--- a\/(.+)$/;
-const DIFF_ADDED_LINE = /^\+(?!\+\+)/;
-const WHY_COMMENT = /^\s*\/\/\s*why:\s*(.*)$/;
-const LEADING_WORD = /[a-z]+/;
-
-const NARRATION_VERBS = [
-  'create',
-  'loop',
-  'call',
-  'return',
-  'set',
-  'get',
-  'make',
-  'add',
-  'use',
-  'iterate',
-  'build',
-  'define',
-  'initialize',
-  'declare',
-];
-
 export type SandboxFiles = Record<string, string>;
 
 export type Sandbox = {
@@ -295,22 +274,15 @@ export const changedPaths = (diff: string): string[] => {
   return [...paths].sort();
 };
 
-export const addedLines = (diff: string): string[] =>
-  diff
-    .split('\n')
-    .filter((line) => DIFF_ADDED_LINE.test(line))
-    .map((line) => line.slice(1));
-
-export const whyTexts = (lines: string[]): string[] =>
-  lines.flatMap((line) => {
-    const match = WHY_COMMENT.exec(line);
-    return match ? [match[1].trim()] : [];
-  });
-
-export const isNarration = (text: string): boolean => {
-  const leading = LEADING_WORD.exec(text.toLowerCase())?.[0] ?? '';
-  return leading !== '' && NARRATION_VERBS.some((verb) => leading.startsWith(verb));
-};
+export const whyComments = (
+  paths: string[],
+  readFile: (relPath: string) => string | undefined,
+): string[] =>
+  paths.flatMap((path) =>
+    parseSource(path, readFile(path) ?? '')
+      .comments.filter((comment) => comment.kind === 'why')
+      .map((comment) => comment.text.trim()),
+  );
 
 export const bashCommands = (toolCalls: ToolCall[]): string[] =>
   toolCalls

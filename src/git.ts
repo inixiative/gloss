@@ -38,15 +38,11 @@ export const setRepoExcludes = (excludes: string[]): void => {
   repoExcludes = excludes;
 };
 
-// why: a vendored tree (a pinned skills mirror, a generated client) is tracked, so check-ignore
-// why: can never exclude it — yet harvesting one edits files the repo forbids editing, and its
-// why: comments are upstream's to fix, not ours. Matching is path-prefix only, never a regex, so
-// why: a stray '.' cannot silently widen an exclude into neighbouring directories.
+// gloss
 const isExcluded = (relPath: string): boolean =>
   repoExcludes.some((prefix) => relPath === prefix || relPath.startsWith(`${prefix}/`));
 
-// why: exit 1 ("nothing ignored") and exit 128 ("not a git repo") both throw with empty output,
-// and both must mean "filter nothing" — a repo without git still gets full enumeration.
+// gloss
 export const ignoredPaths = (repoRoot: string, relPaths: string[]): Set<string> => {
   const skipped = new Set(relPaths.filter(isExcluded));
   if (relPaths.length === 0) return skipped;

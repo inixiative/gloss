@@ -2,24 +2,32 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { sourceFilesUnder } from './harvest';
 import { parseSource } from './resolver';
-import { DAGGER, type LintViolation, WHY_PREFIX } from './types';
+import { belongsInGloss, type CommentKind, DAGGER, type LintViolation, WHY_PREFIX } from './types';
 
-const forbiddenCommentMessage = (sourcePath: string, symbol: string | undefined): string => {
+const forbiddenCommentMessage = (
+  sourcePath: string,
+  symbol: string | undefined,
+  kind: CommentKind,
+): string => {
   const target = symbol === undefined ? 'this file' : `'${symbol}'`;
-  return `comment on ${target} is not '// ${WHY_PREFIX}', a '${DAGGER}' dagger or a machine directive; the harvester relocates it into the gloss (run: gloss harvest ${sourcePath})`;
+  if (kind === 'why') {
+    const section = symbol === undefined ? 'the file preamble' : `the '${symbol}' gloss section`;
+    return `'// ${WHY_PREFIX}' on ${target} is not an inline form; a load-bearing constraint belongs in ${section} (run: gloss harvest ${sourcePath} to move it)`;
+  }
+  return `comment on ${target} is not a '${DAGGER}' dagger or a machine directive; the harvester relocates it into the gloss (run: gloss harvest ${sourcePath})`;
 };
 
 export const lintSource = (filePath: string, sourceText: string): LintViolation[] => {
   const parsed = parseSource(filePath, sourceText);
 
   const forbidden = parsed.comments
-    .filter((comment) => comment.kind === 'harvestable')
+    .filter((comment) => belongsInGloss(comment.kind))
     .map(
       (comment): LintViolation => ({
         kind: 'forbiddenComment',
         sourcePath: filePath,
         line: comment.startLine,
-        message: forbiddenCommentMessage(filePath, comment.enclosingSymbol),
+        message: forbiddenCommentMessage(filePath, comment.enclosingSymbol, comment.kind),
       }),
     );
 

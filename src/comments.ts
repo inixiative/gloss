@@ -1,5 +1,6 @@
 import * as ts from 'typescript';
 import {
+  belongsInGloss,
   type CommentHit,
   type CommentKind,
   DAGGER,
@@ -112,8 +113,7 @@ export const collectComments = (sourceFile: ts.SourceFile, sourceText: string): 
   return [...shebangRange(sourceText), ...collected].sort((a, b) => a.pos - b.pos);
 };
 
-// why: a JSX expression container with no expression can only be braces wrapping a comment; the
-// object-literal reading of `foo({/* x */})` is a different node, so the braces are ours to remove.
+// gloss
 export const jsxCommentContainers = (
   sourceFile: ts.SourceFile,
   sourceText: string,
@@ -166,8 +166,10 @@ export const blankRanges = (sourceText: string, ranges: SourceRange[]): string =
   return blanked;
 };
 
+const COMMENT_OPENER = /^(?:\/\/+|\/\*+)/;
+
 const isWhy = (comment: SourceComment): boolean =>
-  comment.isLineComment && comment.text.slice(2).trimStart().startsWith(WHY_PREFIX);
+  comment.text.replace(COMMENT_OPENER, '').trimStart().startsWith(WHY_PREFIX);
 
 const kindOf = (comment: SourceComment): CommentKind => {
   const marker = markerShapeOf(comment);
@@ -249,7 +251,7 @@ export const classifyComments = (
       startLine: comment.startLine,
       endLine: comment.endLine,
     };
-    if (kind !== 'harvestable') return hit;
+    if (!belongsInGloss(kind)) return hit;
 
     const enclosingSymbol = enclosingSymbolFor(comment, ordered, sourceLines, codeLines);
     if (enclosingSymbol !== undefined) hit.enclosingSymbol = enclosingSymbol;

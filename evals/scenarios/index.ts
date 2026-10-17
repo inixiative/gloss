@@ -1,10 +1,10 @@
 import type { Scenario } from '../harness';
+import { constraintFiling } from './constraintFiling';
 import { deletionDiscipline } from './deletionDiscipline';
 import { readSide } from './readSide';
-import { whyFiling } from './whyFiling';
 import { writeSide } from './writeSide';
 
-export const scenarios: Scenario[] = [readSide, writeSide, deletionDiscipline, whyFiling];
+export const scenarios: Scenario[] = [readSide, writeSide, deletionDiscipline, constraintFiling];
 
 export const scenarioNames = (): string[] => scenarios.map((scenario) => scenario.name);
 

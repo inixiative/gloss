@@ -62,6 +62,9 @@ describe('comment classification', () => {
   test('a why comment is classified why', () => {
     expect(classifyInline('// why: this must stay synchronous').kind).toBe('why');
     expect(classifyInline('//why: no space is still a why').kind).toBe('why');
+    expect(classifyInline('/* why: block form */').kind).toBe('why');
+    expect(classifyInline('/// why: triple slash').kind).toBe('why');
+    expect(classifyInline('// whyever this is prose').kind).toBe('harvestable');
   });
 
   test.each(DIRECTIVE_SAMPLES)('directive: %s', (sample) => {

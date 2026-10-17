@@ -31,7 +31,7 @@
     "build": "tsup",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "lint": "biome check .",
+    "lint": "biome check . && bun src/cli.ts lint && bun src/cli.ts check",
     "format": "biome format --write .",
     "check": "bun run typecheck && bun run lint && bun run test",
     "prepublishOnly": "bun run check && bun run build"
