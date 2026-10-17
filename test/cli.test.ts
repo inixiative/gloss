@@ -119,7 +119,8 @@ describe('runLint', () => {
   test('reports a long why as a warning and still exits 0', () => {
     const root = repo();
     writeFiles(root, {
-      [SOURCE]: '// why: first line of a narrative\n// why: second line of the same narrative\nexport const value = 1;\n',
+      [SOURCE]:
+        '// why: first line of a narrative\n// why: second line of the same narrative\nexport const value = 1;\n',
     });
     const { lines, log } = collector();
 
