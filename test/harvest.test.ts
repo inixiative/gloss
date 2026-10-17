@@ -429,6 +429,31 @@ describe('harvestSource', () => {
     expect(parseSource('src/a.tsx', result.cleanSource).errors).toEqual([]);
   });
 
+  test.each([
+    ['a directive', '      // biome-ignore lint/a11y/useAltText: decorative', 'biome-ignore'],
+    ['a type directive', '      // @ts-expect-error legacy prop', '@ts-expect-error'],
+    ['a second plain comment', '      // two', undefined],
+  ])('a JSX container holding %s next to a plain comment loses nothing', (_label, other, kept) => {
+    const source = [
+      'export const A = () => (',
+      '  <div>',
+      '    {',
+      '      // one',
+      other,
+      '    }',
+      '  </div>',
+      ');',
+      '',
+    ].join('\n');
+    const result = harvestSource('src/a.tsx', source, undefined, 'src/a.tsx');
+    const body = sectionBody(result.gloss, 'A');
+
+    expect(body).toContain('one');
+    if (kept === undefined) expect(body).toContain('two');
+    else expect(result.cleanSource).toContain(kept);
+    expect(parseSource('src/a.tsx', result.cleanSource).errors).toEqual([]);
+  });
+
   test('a file whose markers are malformed is returned unchanged', () => {
     const result = harvestFixture('harvestBlocked.ts');
 

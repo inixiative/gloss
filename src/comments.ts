@@ -241,10 +241,12 @@ export const classifyComments = (
   const codeLines = blankRanges(sourceText, comments).split('\n');
   const labelledCodeLines = blankRanges(sourceText, [...comments, ...containers]).split('\n');
   const ordered = [...symbols].sort((a, b) => a.startLine - b.startLine);
-  const holdsOnlyHarvestable = (container: JsxCommentContainer): boolean =>
-    comments
-      .filter((inner) => container.pos <= inner.pos && container.end >= inner.end)
-      .every((inner) => kindOf(inner) === 'harvestable');
+  const holdsOnlyHarvestable = (container: JsxCommentContainer): boolean => {
+    const inside = comments.filter(
+      (inner) => container.pos <= inner.pos && container.end >= inner.end,
+    );
+    return inside.length === 1 && inside.every((inner) => kindOf(inner) === 'harvestable');
+  };
 
   return comments.map((comment) => {
     const kind = kindOf(comment);
