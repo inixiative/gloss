@@ -2,8 +2,8 @@ import { parseSource } from '../../src/index';
 import {
   changedPaths,
   type GradeContext,
-  packageJsonFor,
   longWhys,
+  packageJsonFor,
   type Scenario,
   whyComments,
 } from '../harness';

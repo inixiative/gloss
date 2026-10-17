@@ -2,8 +2,8 @@ import { checkRepo, glossPathFor, harvestPaths, parseGlossDoc } from '../../src/
 import {
   changedPaths,
   type GradeContext,
-  packageJsonFor,
   longWhys,
+  packageJsonFor,
   type Scenario,
   whyComments,
 } from '../harness';
