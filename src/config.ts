@@ -2,10 +2,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { setRepoDirectives } from './comments';
 import { setRepoExcludes } from './git';
+import { setWhyMaxLength } from './lint';
 
 const PACKAGE_JSON = 'package.json';
 const DIRECTIVES_KEY = 'gloss.directives';
 const EXCLUDE_KEY = 'gloss.exclude';
+const WHY_MAX_LENGTH_KEY = 'gloss.whyMaxLength';
 
 const configError = (detail: string, key: string = DIRECTIVES_KEY): Error =>
   new Error(`${key} in ${PACKAGE_JSON}: ${detail}`);
@@ -32,6 +34,7 @@ export const loadRepoDirectives = (repoRoot: string): void => {
   if (!existsSync(packagePath)) {
     setRepoDirectives([]);
     setRepoExcludes([]);
+    setWhyMaxLength();
     return;
   }
 
@@ -42,7 +45,9 @@ export const loadRepoDirectives = (repoRoot: string): void => {
     throw configError(`${PACKAGE_JSON} is not valid JSON`);
   }
 
-  const config = (parsed as { gloss?: { directives?: unknown; exclude?: unknown } })?.gloss;
+  const config = (
+    parsed as { gloss?: { directives?: unknown; exclude?: unknown; whyMaxLength?: unknown } }
+  )?.gloss;
 
   const directives = config?.directives ?? [];
   if (!Array.isArray(directives)) throw configError('must be an array of regex strings');
@@ -51,4 +56,14 @@ export const loadRepoDirectives = (repoRoot: string): void => {
   const exclude = config?.exclude ?? [];
   if (!Array.isArray(exclude)) throw configError('must be an array of paths', EXCLUDE_KEY);
   setRepoExcludes(exclude.map(normalizeExclude));
+
+  const whyMaxLength = config?.whyMaxLength;
+  if (whyMaxLength === undefined) {
+    setWhyMaxLength();
+    return;
+  }
+  if (typeof whyMaxLength !== 'number' || !Number.isInteger(whyMaxLength) || whyMaxLength < 1) {
+    throw configError('must be a positive integer', WHY_MAX_LENGTH_KEY);
+  }
+  setWhyMaxLength(whyMaxLength);
 };

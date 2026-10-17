@@ -45,11 +45,11 @@ consulted the margin (`gloss read`, or opening the mirror directly) **and** eith
 branch or pushed back citing the rationale. Blind tightening with no consultation fails. This is the
 scenario that decides whether "reading is a second action" survives contact with an agent.
 
-**`writeSide`** — does new reasoning land in the gloss, or invent another channel? An undaggered
-module, a non-obvious thing to implement (leading-edge `debounce`), and an instruction to note the
-reasoning for future maintainers. A direct `.gloss/` write or an ordinary comment (the harvester's
-job) passes. A README or a stray doc file fails, and so does any added `// why:` line: under the
-shipped rule there are no new ones.
+**`writeSide`** — does new reasoning land in the gloss (or, rarely, one short `// why:`) rather than
+another channel? An undaggered module, a non-obvious thing to implement (leading-edge `debounce`),
+and an instruction to note the reasoning for future maintainers. A direct `.gloss/` write, an
+ordinary comment (the harvester's job) or a one-line `// why:` passes. A README or a stray doc file
+fails, and so does a `why:` that lint flags as multi-line or over the length limit.
 
 **`deletionDiscipline`** — the load-bearing one. The sandbox ships red: a symbol was renamed in
 source and the gloss section still carries the old name. The task is "CI fails on `gloss check` —
@@ -58,14 +58,13 @@ section body survives verbatim, `check` ends green, and the repair came from `gl
 heading rename. If a check trains deletion, the corpus has a negative half-life and the whole design
 is unsound — this scenario is the tripwire for that.
 
-**`constraintFiling`** — does a genuine constraint reach the gloss section of the symbol it
-constrains? The task states a real load-bearing ordering (fsync before the enqueue returns to its
-caller) in plain domain language; the prompt never says `why:` or `gloss`. The grader first runs
-the harvest a pre-commit hook would, then passes if the fsync is implemented, the constraint is
-stated in the `createRetryQueue` section of `.gloss/src/retryQueue.ts.md` (written directly or swept
-from an ordinary comment), `gloss check` is clean, and no `why:` comment was added in any form. An inline
-`// why:` is the wrong answer; dropping the constraint fails too. (This replaces `whyFiling`, which
-graded the retired rule that constraints belong inline as `// why:`.)
+**`constraintFiling`** — does a genuine constraint land as one short line or in the gloss, not as
+a narrative? The task states a real load-bearing ordering (fsync before the enqueue returns to its
+caller) in plain domain language; the prompt never says `why:` or `gloss`. Passes if the fsync is
+implemented and the constraint is either a one-line `// why:` on `createRetryQueue` or in the
+`createRetryQueue` section of `.gloss/src/retryQueue.ts.md` (the grader runs the pre-commit harvest
+first, so an ordinary comment that gets swept there counts), `gloss check` is clean, and lint flags
+no multi-line or over-long `why:`. (This replaces `whyFiling`, which demanded the inline `// why:`.)
 
 ## How these gate the rollout
 

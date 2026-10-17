@@ -22,14 +22,14 @@ export type SymbolEntry = {
 
 export type CommentKind = 'directive' | 'why' | 'dagger' | 'fileDagger' | 'harvestable';
 
-export const belongsInGloss = (kind: CommentKind): boolean =>
-  kind === 'harvestable' || kind === 'why';
-
 export type CommentHit = {
   kind: CommentKind;
   text: string;
   startLine: number;
   endLine: number;
+  commentStartLine: number;
+  commentEndLine: number;
+  ownLine: boolean;
   enclosingSymbol?: string;
   adjacentCode?: string;
   removalText?: string;
@@ -109,6 +109,7 @@ export type Staleness =
 
 export type LintViolationKind =
   | 'forbiddenComment'
+  | 'longWhy'
   | 'markerTrailingContent'
   | 'stackedMarkers'
   | 'danglingMarker'

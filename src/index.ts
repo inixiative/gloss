@@ -35,7 +35,7 @@ export {
 } from './glossFile';
 export { harvestPaths, harvestSource } from './harvest';
 export { sectionHistory } from './history';
-export { lintPaths, lintSource } from './lint';
+export { DEFAULT_WHY_MAX_LENGTH, lintPaths, lintSource, setWhyMaxLength } from './lint';
 export { renderGloss } from './read';
 export { parseSource } from './resolver';
 export {

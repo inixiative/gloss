@@ -2,6 +2,7 @@ import { checkRepo, glossPathFor, harvestPaths, parseGlossDoc } from '../../src/
 import {
   changedPaths,
   type GradeContext,
+  longWhys,
   packageJsonFor,
   type Scenario,
   whyComments,
@@ -45,7 +46,10 @@ const grade = ({ sandbox, diff, readFile }: GradeContext) => {
   const sourcePaths = paths.filter((path) => path.startsWith('src/') && path.endsWith('.ts'));
   const sourceText = sourcePaths.map((path) => readFile(path) ?? '').join('\n');
   const persisted = FSYNC_CALLED.test(sourceText);
-  const addedWhys = whyComments(sourcePaths, readFile);
+  const tooLong = longWhys(sourcePaths, readFile);
+  const inlineWhy = whyComments(sourcePaths, readFile).some(
+    (why) => why.symbol === TARGET_SYMBOL && isConstraint(why.text),
+  );
 
   harvestPaths(sandbox, sourcePaths);
   const glossText = readFile(glossPathFor(SOURCE_PATH));
@@ -56,11 +60,12 @@ const grade = ({ sandbox, diff, readFile }: GradeContext) => {
   const checkClean = checkRepo(sandbox).length === 0;
 
   return {
-    pass: persisted && filedIn.length > 0 && addedWhys.length === 0 && checkClean,
+    pass: persisted && (inlineWhy || filedIn.length > 0) && tooLong.length === 0 && checkClean,
     notes: [
       `enqueue actually fsyncs: ${persisted}`,
+      `constraint as a one-line '// why:' on ${TARGET_SYMBOL}: ${inlineWhy}`,
       `constraint in the ${TARGET_SYMBOL} gloss section (after the pre-commit harvest): ${filedIn.length > 0}`,
-      `'// why:' lines added (the wrong answer): ${addedWhys.join(' / ') || 'none'}`,
+      `multi-line or over-long 'why:' (the wrong answer): ${tooLong.join(', ') || 'none'}`,
       `gloss check clean (dagger and section paired): ${checkClean}`,
     ],
   };

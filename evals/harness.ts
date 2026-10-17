@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
-import { parseSource, readClaudeSnippet } from '../src/index';
+import { lintSource, parseSource, readClaudeSnippet } from '../src/index';
 
 const REPO_ROOT = resolve(import.meta.dir, '..');
 
@@ -274,14 +274,26 @@ export const changedPaths = (diff: string): string[] => {
   return [...paths].sort();
 };
 
+export type WhyComment = { text: string; symbol?: string };
+
 export const whyComments = (
+  paths: string[],
+  readFile: (relPath: string) => string | undefined,
+): WhyComment[] =>
+  paths.flatMap((path) =>
+    parseSource(path, readFile(path) ?? '')
+      .comments.filter((comment) => comment.kind === 'why')
+      .map((comment) => ({ text: comment.text.trim(), symbol: comment.enclosingSymbol })),
+  );
+
+export const longWhys = (
   paths: string[],
   readFile: (relPath: string) => string | undefined,
 ): string[] =>
   paths.flatMap((path) =>
-    parseSource(path, readFile(path) ?? '')
-      .comments.filter((comment) => comment.kind === 'why')
-      .map((comment) => comment.text.trim()),
+    lintSource(path, readFile(path) ?? '')
+      .filter((violation) => violation.kind === 'longWhy')
+      .map((violation) => `${path}:${violation.line}`),
   );
 
 export const bashCommands = (toolCalls: ToolCall[]): string[] =>

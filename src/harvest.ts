@@ -12,7 +12,6 @@ import { ignoredPaths } from './git';
 import { glossPathFor, parseGlossDoc, serializeGlossDoc, upsertSection } from './glossFile';
 import { parseSource } from './resolver';
 import {
-  belongsInGloss,
   type CommentHit,
   DAGGER,
   FILE_DAGGER,
@@ -20,7 +19,6 @@ import {
   type HarvestResult,
   type ParsedSource,
   type ResolverErrorCode,
-  WHY_PREFIX,
 } from './types';
 
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts']);
@@ -87,13 +85,6 @@ const stripCommentMarkers = (text: string): string => {
     .trim();
 };
 
-const WHY_LABEL = new RegExp(`^${WHY_PREFIX}\\s*`);
-
-const entryLineOf = (hit: CommentHit): string => {
-  const text = stripCommentMarkers(hit.text);
-  return hit.kind === 'why' ? text.replace(WHY_LABEL, '') : text;
-};
-
 const locateComments = (source: SourceIndex, hits: CommentHit[]): LocatedComment[] => {
   const located: LocatedComment[] = [];
   let cursor = 0;
@@ -156,7 +147,7 @@ const escapeHeadings = (text: string): string =>
 // gloss
 const entryFor = (group: CommentHit[]): string => {
   const text = group
-    .map((hit) => entryLineOf(hit))
+    .map((hit) => stripCommentMarkers(hit.text))
     .filter((line) => line !== '')
     .join('\n');
 
@@ -270,7 +261,7 @@ export const harvestSource = (
   const source = indexSource(sourceText);
   const located = locateComments(
     source,
-    parsed.comments.filter((comment) => belongsInGloss(comment.kind)),
+    parsed.comments.filter((comment) => comment.kind === 'harvestable'),
   );
   const moved = located.map((entry) => entry.hit);
 

@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { setRepoDirectives } from '../src/comments';
 import { loadRepoDirectives } from '../src/config';
 import { setRepoExcludes } from '../src/git';
-import { lintPaths } from '../src/lint';
+import { lintPaths, setWhyMaxLength } from '../src/lint';
 
 const MARKED_FILE = '/**\n * @codemap\n * kind: service\n */\nexport const value = 1;\n';
 
@@ -28,6 +28,30 @@ describe('loadRepoDirectives', () => {
 
   afterEach(() => {
     setRepoDirectives([]);
+    setWhyMaxLength();
+  });
+
+  test('gloss.whyMaxLength sets the one-line why limit', () => {
+    const files = {
+      'src/a.ts': '// why: a forty-character reason, roughly\nexport const a = 1;\n',
+    };
+    const strict = repo({
+      ...files,
+      'package.json': JSON.stringify({ gloss: { whyMaxLength: 20 } }),
+    });
+    loadRepoDirectives(strict);
+    expect(lintPaths(strict).map((violation) => violation.kind)).toEqual(['longWhy']);
+
+    const relaxed = repo({ ...files, 'package.json': JSON.stringify({ name: 'x' }) });
+    loadRepoDirectives(relaxed);
+    expect(lintPaths(relaxed)).toEqual([]);
+  });
+
+  test('a whyMaxLength that is not a positive integer throws', () => {
+    for (const whyMaxLength of [0, -1, 1.5, '80']) {
+      const root = repo({ 'package.json': JSON.stringify({ gloss: { whyMaxLength } }) });
+      expect(() => loadRepoDirectives(root)).toThrow('gloss.whyMaxLength');
+    }
   });
 
   afterAll(() => {
