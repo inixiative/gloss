@@ -1,16 +1,14 @@
-import { parseSource } from '../../src/index';
+import { checkRepo, glossPathFor, parseGlossDoc } from '../../src/index';
 import {
   addedLines,
   changedPaths,
   type GradeContext,
-  isNarration,
   packageJsonFor,
   type Scenario,
   whyTexts,
 } from '../harness';
 
 const SOURCE_PATH = 'src/retryQueue.ts';
-const GLOSS_PREFIX = '.gloss/';
 const FSYNC_MENTIONED = /fsync|fdatasync/i;
 const FSYNC_CALLED = /\bf(?:data)?sync(?:Sync)?\s*\(/i;
 const ORDERING_MENTIONED = /\back\b|acknowledg|before\s+return|caller|crash|durab|order/i;
@@ -42,41 +40,33 @@ const index = `export { createRetryQueue, type RetryJob } from './retryQueue';
 const isConstraint = (text: string): boolean =>
   FSYNC_MENTIONED.test(text) && ORDERING_MENTIONED.test(text);
 
-const grade = ({ diff, readFile }: GradeContext) => {
+const grade = ({ sandbox, diff, readFile }: GradeContext) => {
   const paths = changedPaths(diff);
   const sourcePaths = paths.filter((path) => path.startsWith('src/') && path.endsWith('.ts'));
   const sourceText = sourcePaths.map((path) => readFile(path) ?? '').join('\n');
   const persisted = FSYNC_CALLED.test(sourceText);
 
-  const sourceWhys = whyTexts(
-    sourcePaths
-      .flatMap((path) => parseSource(path, readFile(path) ?? '').comments)
-      .filter((comment) => comment.kind === 'why')
-      .map((comment) => comment.text),
-  );
+  const glossText = readFile(glossPathFor(SOURCE_PATH));
+  const sections = glossText === undefined ? [] : parseGlossDoc(glossText).sections;
+  const filedIn = sections.filter((section) => isConstraint(section.body));
   const addedWhys = whyTexts(addedLines(diff));
-  const filedInSource = sourceWhys.some(isConstraint);
-  const filedInDiff = addedWhys.some(isConstraint);
-  const narrating = sourceWhys.filter(isNarration);
-  const glossTouched = paths.some((path) => path.startsWith(GLOSS_PREFIX));
+  const checkClean = checkRepo(sandbox).length === 0;
 
   return {
-    pass: persisted && filedInSource && filedInDiff && narrating.length === 0,
+    pass: persisted && filedIn.length > 0 && addedWhys.length === 0 && checkClean,
     notes: [
       `enqueue actually fsyncs: ${persisted}`,
-      `constraint filed inline as '// why:' in source: ${filedInSource}`,
-      `that '// why:' line appears in the diff: ${filedInDiff}`,
-      `inline '// why:' lines found: ${sourceWhys.join(' / ') || 'none'}`,
-      `'// why:' lines that narrate instead of stating a constraint: ${narrating.join(' / ') || 'none'}`,
-      `also wrote into ${GLOSS_PREFIX}: ${glossTouched}`,
+      `constraint filed in a gloss section: ${filedIn.map((section) => section.symbol).join(', ') || 'none'}`,
+      `'// why:' lines added (the wrong answer): ${addedWhys.join(' / ') || 'none'}`,
+      `gloss check clean (dagger and section paired): ${checkClean}`,
     ],
   };
 };
 
-export const whyFiling: Scenario = {
-  name: 'whyFiling',
+export const constraintFiling: Scenario = {
+  name: 'constraintFiling',
   files: {
-    'package.json': packageJsonFor('why-filing'),
+    'package.json': packageJsonFor('constraint-filing'),
     [SOURCE_PATH]: source,
     'src/index.ts': index,
   },

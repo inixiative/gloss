@@ -64,7 +64,7 @@ export const formatAdditionalContext = (text: string): string | undefined => {
   });
 };
 
-// why: a hook that throws surfaces as an error to the agent on every Read/Grep; silence is the correct failure mode.
+// gloss
 export const runClaudeHook = (
   event: ClaudeHookEvent,
   stdin: string,
@@ -82,8 +82,7 @@ export const runClaudeHook = (
 
 const LOCAL_BIN = '"$CLAUDE_PROJECT_DIR/node_modules/.bin/gloss"';
 
-// why: the repo's own installed bin, never `bunx gloss`: a teammate without node_modules would have bunx fetch
-// why: the unrelated unscoped `gloss` package on every Read; a missing install stays silent like the hook does.
+// gloss
 export const claudeHookCommand = (event: ClaudeHookEvent): string =>
   `test -x ${LOCAL_BIN} && ${LOCAL_BIN} hook ${event} || true`;
 
@@ -182,8 +181,7 @@ const postToolUseOf = (settings: JsonObject): unknown[] | undefined => {
   return Array.isArray(groups) ? groups : undefined;
 };
 
-// why: settings.json is shared with every other hook and permission in the repo; anything we cannot
-// why: parse into the expected shape is left untouched rather than rewritten.
+// gloss
 export const installClaudeHooks = (repoRoot: string): ClaudeHooksOutcome => {
   const path = join(repoRoot, CLAUDE_SETTINGS_FILE);
   const existed = existsSync(path);

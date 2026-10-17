@@ -14,8 +14,8 @@ Source files carry only two comment forms:
    `@ts-nocheck`, `prettier-ignore`, `/// <reference`, shebangs, license headers, `#__PURE__`,
    bundler magic comments, istanbul/c8, `@vitest-environment`, `sourceMappingURL`.
 
-**No new `// why:` lines.** Existing ones are legacy: lint and the harvester still let them through,
-so when you touch one, move it into its symbol's gloss section.
+**No `// why:` lines.** `gloss lint` flags them, and `gloss harvest` moves an existing one into its
+symbol's gloss section like any other comment.
 
 **Writing.** Write the section yourself: `src/foo.ts` glosses to `.gloss/src/foo.ts.md`, with an
 `# src/foo.ts` h1, an optional preamble, and one `## <symbol>` section per symbol (`Class.method` for

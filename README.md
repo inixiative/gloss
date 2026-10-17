@@ -55,8 +55,10 @@ export const resolveMarkerTarget = (source: ParsedSource, line: number) => { ...
 // biome-ignore lint/suspicious/noExplicitAny: the resolver hands back an untyped AST node
 ```
 
-**Legacy `// why:` lines.** New code writes none. Lint and the harvester still exempt a line comment
-starting `why:`, so existing ones stay put until someone moves them into their symbol's section.
+**`// why:` lines are not an inline form.** Lint flags every line comment starting `why:`, with a
+message naming the gloss section it belongs in, and the harvester sweeps it like any other comment:
+into the enclosing symbol's section with the `why:` label dropped, dagger planted. Lint has no
+diff scope, so a repo adopting this sees its existing ones flagged; `gloss harvest` clears them.
 
 Repos with their own machine-read comment forms extend the recognized set in `package.json` —
 regex sources tested against the full comment text:
@@ -104,7 +106,7 @@ lint-passes/CI-fails split-brain.
 
 - a decorator is part of the declaration it decorates
 
-Skips blank lines and legacy `// why:` lines between the dagger and the declaration. Rejects
+Skips blank lines and other comments between the dagger and the declaration. Rejects
 multi-declarator `const a = 1, b = 2` rather than guessing which half was meant. See
 [ZLT-1204](https://linear.app/...).
 
@@ -117,10 +119,9 @@ whose dagger was deleted.
 ## The harvester
 
 The write path is mechanical, not instructional. A comment an agent writes out of habit doesn't stay
-in the source: the harvester sweeps every comment that isn't a dagger, a directive or a legacy
-`// why:` line into the enclosing symbol's gloss section and plants the dagger, and nothing is
-deleted to satisfy lint: the spillway fills by machine. The one part that rests on instruction alone
-is "no new `// why:` lines": lint and the harvester still exempt them, so only the rule stops a new one.
+in the source: the harvester sweeps every comment that isn't a dagger or a directive (`// why:`
+lines included) into the enclosing symbol's gloss section and plants the dagger, and nothing is
+deleted to satisfy lint: the spillway fills by machine.
 
 The calm default is harvest-at-commit (`gloss harvest --staged` in pre-commit). `gloss watch` is
 opt-in per dev process and heavily debounced — it must never rewrite a file mid-edit, which is the
@@ -151,7 +152,7 @@ Run as `bunx gloss <cmd>`, or `bun src/cli.ts <cmd>` in this repo.
 
 | Command | |
 | --- | --- |
-| `gloss lint [paths]` | Flag source comments that belong in the gloss (anything but a dagger, a machine directive or a legacy `// why:` line). |
+| `gloss lint [paths]` | Flag source comments that belong in the gloss: anything but a dagger or a machine directive, `// why:` included. |
 | `gloss check` | Bidirectional dagger ⇔ section audit, both directions. Blocking in CI; also the rename/move/orphan detector. |
 | `gloss fix` | Repair what `check` found: re-pair renamed symbols, move mirrors after a `git mv`, rewrite header paths. |
 | `gloss harvest [paths]` | Sweep harvestable comments into the gloss and plant daggers. `--staged` for the pre-commit path. |

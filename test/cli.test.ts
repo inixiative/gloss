@@ -1,3 +1,5 @@
+// gloss:file
+
 import { afterEach, describe, expect, test } from 'bun:test';
 import {
   existsSync,
@@ -633,9 +635,6 @@ describe('isEntryPath', () => {
     expect(isEntryPath(cli, cli)).toBe(true);
   });
 
-  // why: this is the whole bug — package managers invoke the bin through
-  // why: node_modules/.bin/gloss, a symlink, so a resolve()-only comparison
-  // why: never matched and every `bunx gloss` exited 0 having done nothing.
   test('matches when the entry is the bin symlink pointing at the module', () => {
     const { cli, link } = linkedCli();
 

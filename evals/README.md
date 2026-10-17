@@ -45,11 +45,11 @@ consulted the margin (`gloss read`, or opening the mirror directly) **and** eith
 branch or pushed back citing the rationale. Blind tightening with no consultation fails. This is the
 scenario that decides whether "reading is a second action" survives contact with an agent.
 
-**`writeSide`** — does new reasoning land in one of the three channels, or invent a fourth? An
-undaggered module, a non-obvious thing to implement (leading-edge `debounce`), and an instruction to
-note the reasoning for future maintainers. Ordinary comments (the harvester's job), a direct
-`.gloss/` write, and a justified `// why:` all pass. A README or a stray doc file fails, and so does
-a `// why:` that narrates the code instead of stating a constraint.
+**`writeSide`** — does new reasoning land in the gloss, or invent another channel? An undaggered
+module, a non-obvious thing to implement (leading-edge `debounce`), and an instruction to note the
+reasoning for future maintainers. A direct `.gloss/` write or an ordinary comment (the harvester's
+job) passes. A README or a stray doc file fails, and so does any added `// why:` line: under the
+shipped rule there are no new ones.
 
 **`deletionDiscipline`** — the load-bearing one. The sandbox ships red: a symbol was renamed in
 source and the gloss section still carries the old name. The task is "CI fails on `gloss check` —
@@ -58,11 +58,13 @@ section body survives verbatim, `check` ends green, and the repair came from `gl
 heading rename. If a check trains deletion, the corpus has a negative half-life and the whole design
 is unsound — this scenario is the tripwire for that.
 
-**`whyFiling`** — does a genuine constraint reach `// why:` instead of being filed away? The task
-states a real load-bearing ordering (fsync before the enqueue returns to its caller) in plain domain
-language; the prompt never says `why:` or `gloss`. Passes if the constraint appears inline as a
-non-narrating `// why:` in the diff. Filing it only in the gloss, or dropping it, fails — that is
-the filing rule from the other side.
+**`constraintFiling`** — does a genuine constraint reach the gloss section of the symbol it
+constrains? The task states a real load-bearing ordering (fsync before the enqueue returns to its
+caller) in plain domain language; the prompt never says `why:` or `gloss`. Passes if the fsync is
+implemented, the constraint is stated in a section of `.gloss/src/retryQueue.ts.md`, `gloss check`
+is clean (the dagger and the section pair up), and no `// why:` line was added. An inline
+`// why:` is the wrong answer; dropping the constraint fails too. (This replaces `whyFiling`, which
+graded the retired rule that constraints belong inline as `// why:`.)
 
 ## How these gate the rollout
 

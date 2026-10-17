@@ -32,7 +32,7 @@ export const glossContextForRead = (repoRoot: string, relPath: string): string |
   return `gloss for ${relPath} (margin commentary; \`bunx gloss read ${relPath} [symbol]\` re-prints it):\n\n${renderGloss(repoRoot, relPath).trimEnd()}`;
 };
 
-// why: a grep pattern is a regex, not a symbol; only its longest identifier-shaped run is worth looking up.
+// gloss
 export const identifierToken = (pattern: string): string | undefined => {
   const tokens = pattern.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? [];
   const longest = [...tokens].sort((a, b) => b.length - a.length)[0];

@@ -62,10 +62,21 @@ describe('lintSource', () => {
     ]);
   });
 
-  test('why lines, directives and well-formed daggers yield nothing', () => {
-    expect(lintFixture('markers.ts')).toEqual([]);
+  test('directives and well-formed daggers yield nothing', () => {
     expect(lintFixture('directives.ts')).toEqual([]);
     expect(lintFixture('fileMarker.ts')).toEqual([]);
+  });
+
+  test("a why line is flagged and pointed at its symbol's gloss section", () => {
+    const violations = lintFixture('markers.ts');
+
+    expect(kindsAt(violations)).toEqual([[6, 'forbiddenComment']]);
+    expect(violations[0].message).toContain("'// why:' on 'Widget' is not an inline form");
+    expect(violations[0].message).toContain("the 'Widget' gloss section");
+    expect(violations[0].message).toContain('gloss harvest test/fixtures/markers.ts');
+    expect(lintSource('inline.ts', '// why: at the top\n')[0]?.message).toContain(
+      'the file preamble',
+    );
   });
 
   test('a comment-free file yields nothing', () => {
@@ -78,7 +89,8 @@ describe('lintPaths', () => {
   const files: Record<string, string> = {
     'src/one.ts': '// a note above the value\nexport const one = 1;\n',
     'src/two.ts': '// gloss: trailing\nexport const two = 2;\n',
-    'src/clean.ts': '// why: load bearing\nexport const clean = 3;\n',
+    'src/clean.ts': '// gloss\nexport const clean = 3;\n',
+    'src/why.ts': '// why: load bearing\nexport const why = 3;\n',
     'src/fixtures/skipped.ts': '// skipped note\nexport const skipped = 4;\n',
     'node_modules/pkg/index.ts': '// skipped note\nexport const dep = 5;\n',
   };
@@ -96,6 +108,7 @@ describe('lintPaths', () => {
     expect(violations.map((violation) => [violation.sourcePath, violation.kind])).toEqual([
       ['src/one.ts', 'forbiddenComment'],
       ['src/two.ts', 'markerTrailingContent'],
+      ['src/why.ts', 'forbiddenComment'],
     ]);
   });
 

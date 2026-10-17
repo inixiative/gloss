@@ -26,8 +26,7 @@ const compile = (source: unknown, index: number): RegExp => {
   }
 };
 
-// why: a config error must throw, never degrade to [] — silently dropping a repo directive
-// pattern reclassifies protected machine comments as harvestable and the next harvest sweeps them.
+// gloss
 export const loadRepoDirectives = (repoRoot: string): void => {
   const packagePath = join(repoRoot, PACKAGE_JSON);
   if (!existsSync(packagePath)) {

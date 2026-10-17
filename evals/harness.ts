@@ -35,25 +35,6 @@ const DIFF_ADDED_PATH = /^\+\+\+ b\/(.+)$/;
 const DIFF_REMOVED_PATH = /^--- a\/(.+)$/;
 const DIFF_ADDED_LINE = /^\+(?!\+\+)/;
 const WHY_COMMENT = /^\s*\/\/\s*why:\s*(.*)$/;
-const LEADING_WORD = /[a-z]+/;
-
-const NARRATION_VERBS = [
-  'create',
-  'loop',
-  'call',
-  'return',
-  'set',
-  'get',
-  'make',
-  'add',
-  'use',
-  'iterate',
-  'build',
-  'define',
-  'initialize',
-  'declare',
-];
-
 export type SandboxFiles = Record<string, string>;
 
 export type Sandbox = {
@@ -306,11 +287,6 @@ export const whyTexts = (lines: string[]): string[] =>
     const match = WHY_COMMENT.exec(line);
     return match ? [match[1].trim()] : [];
   });
-
-export const isNarration = (text: string): boolean => {
-  const leading = LEADING_WORD.exec(text.toLowerCase())?.[0] ?? '';
-  return leading !== '' && NARRATION_VERBS.some((verb) => leading.startsWith(verb));
-};
 
 export const bashCommands = (toolCalls: ToolCall[]): string[] =>
   toolCalls

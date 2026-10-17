@@ -326,6 +326,7 @@ const parseCommandLine = (argv: string[]): CommandLine | undefined => {
   }
 };
 
+// gloss
 export const runCommand = (
   argv: string[],
   cwd: string,
@@ -334,7 +335,6 @@ export const runCommand = (
   const line = parseCommandLine(argv);
   if (!line) return { code: runUsage(log) };
 
-  // why: the hook runs on every agent Read/Grep; it must not depend on git or throw on a bad package.json.
   if (line.command === 'hook') {
     const [event] = line.positionals;
     if (!isClaudeHookEvent(event)) return { code: runUsage(log) };
@@ -378,9 +378,7 @@ export const main = (argv: string[] = process.argv.slice(2), cwd: string = proce
   if (watcher === undefined) process.exit(code);
 };
 
-// why: package managers link the bin as node_modules/.bin/gloss -> dist/cli.js, and
-// why: resolve() does not follow symlinks — comparing it to import.meta.url made every
-// why: `bunx gloss` / `.bin/gloss` run a silent no-op that still exited 0.
+// gloss
 export const isEntryPath = (entry: string | undefined, selfPath: string): boolean => {
   if (entry === undefined) return false;
   const real = (path: string): string => {

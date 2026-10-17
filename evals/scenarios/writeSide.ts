@@ -1,8 +1,8 @@
 import { parseSource } from '../../src/index';
 import {
+  addedLines,
   changedPaths,
   type GradeContext,
-  isNarration,
   packageJsonFor,
   type Scenario,
   whyTexts,
@@ -37,22 +37,20 @@ const grade = ({ diff, readFile }: GradeContext) => {
 
   const comments = sourcePaths.flatMap((path) => parseSource(path, readFile(path) ?? '').comments);
   const prose = comments.filter((comment) => comment.kind === 'harvestable');
-  const whys = comments.filter((comment) => comment.kind === 'why');
-  const narrating = whyTexts(whys.map((comment) => comment.text)).filter(isNarration);
+  const addedWhys = whyTexts(addedLines(diff));
 
   const glossWritten = paths.some((path) => path.startsWith(GLOSS_PREFIX));
   const strayProse = paths.filter((path) => path.endsWith('.md') && !path.startsWith(GLOSS_PREFIX));
-  const reasoningLanded = prose.length > 0 || whys.length > 0 || glossWritten;
+  const reasoningLanded = prose.length > 0 || glossWritten;
 
   return {
-    pass: implemented && reasoningLanded && strayProse.length === 0 && narrating.length === 0,
+    pass: implemented && reasoningLanded && strayProse.length === 0 && addedWhys.length === 0,
     notes: [
       `debounce implemented with a timer: ${implemented}`,
       `ordinary comments left for the harvester: ${prose.length}`,
-      `'// why:' lines added: ${whys.length}`,
       `wrote into ${GLOSS_PREFIX} directly: ${glossWritten}`,
-      `prose filed outside the three channels: ${strayProse.join(', ') || 'none'}`,
-      `'// why:' lines that narrate instead of stating a constraint: ${narrating.join(' / ') || 'none'}`,
+      `'// why:' lines added (the wrong answer): ${addedWhys.join(' / ') || 'none'}`,
+      `prose filed outside the gloss: ${strayProse.join(', ') || 'none'}`,
     ],
   };
 };

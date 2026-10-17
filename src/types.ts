@@ -22,6 +22,9 @@ export type SymbolEntry = {
 
 export type CommentKind = 'directive' | 'why' | 'dagger' | 'fileDagger' | 'harvestable';
 
+export const belongsInGloss = (kind: CommentKind): boolean =>
+  kind === 'harvestable' || kind === 'why';
+
 export type CommentHit = {
   kind: CommentKind;
   text: string;

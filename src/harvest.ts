@@ -12,6 +12,7 @@ import { ignoredPaths } from './git';
 import { glossPathFor, parseGlossDoc, serializeGlossDoc, upsertSection } from './glossFile';
 import { parseSource } from './resolver';
 import {
+  belongsInGloss,
   type CommentHit,
   DAGGER,
   FILE_DAGGER,
@@ -19,6 +20,7 @@ import {
   type HarvestResult,
   type ParsedSource,
   type ResolverErrorCode,
+  WHY_PREFIX,
 } from './types';
 
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts']);
@@ -85,6 +87,13 @@ const stripCommentMarkers = (text: string): string => {
     .trim();
 };
 
+const WHY_LABEL = new RegExp(`^${WHY_PREFIX}\\s*`);
+
+const entryLineOf = (hit: CommentHit): string => {
+  const text = stripCommentMarkers(hit.text);
+  return hit.kind === 'why' ? text.replace(WHY_LABEL, '') : text;
+};
+
 const locateComments = (source: SourceIndex, hits: CommentHit[]): LocatedComment[] => {
   const located: LocatedComment[] = [];
   let cursor = 0;
@@ -137,20 +146,17 @@ const groupAdjacent = (hits: CommentHit[]): CommentHit[][] => {
   return groups;
 };
 
-// why: a harvested line starting with '#' would parse as gloss structure (h1 path header,
-// '##' symbol section) and fabricate sections naming no symbol; escape it at column 0.
+// gloss
 const escapeHeadings = (text: string): string =>
   text
     .split('\n')
     .map((line) => (line.startsWith('#') ? `\\${line}` : line))
     .join('\n');
 
-// why: the symbol section is gloss's only validated binding — a quoted code line (like a line
-// number) rots silently and answers "where does this apply" with a syntactic proxy. Prose that
-// needs finer-than-symbol placement is load-bearing and belongs inline as '// why:'.
+// gloss
 const entryFor = (group: CommentHit[]): string => {
   const text = group
-    .map((hit) => stripCommentMarkers(hit.text))
+    .map((hit) => entryLineOf(hit))
     .filter((line) => line !== '')
     .join('\n');
 
@@ -264,7 +270,7 @@ export const harvestSource = (
   const source = indexSource(sourceText);
   const located = locateComments(
     source,
-    parsed.comments.filter((comment) => comment.kind === 'harvestable'),
+    parsed.comments.filter((comment) => belongsInGloss(comment.kind)),
   );
   const moved = located.map((entry) => entry.hit);
 
