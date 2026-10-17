@@ -1,5 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import {
+  CLAUDE_SETTINGS_FILE,
+  claudeHookGroups,
+  hasClaudeHooks,
+  installClaudeHooks,
+} from './claudeCode';
 
 export type SetupReport = {
   created: string[];
@@ -31,6 +37,15 @@ const SUGGESTIONS = [
   'If this repo publishes to npm, add ".gloss" to package.json "files" so daggers do not dangle for agents reading node_modules.',
   'Run `bunx gloss harvest` once over the tree to lift the comments already in source into the gloss.',
 ];
+
+export type SetupOptions = {
+  claudeHooks?: boolean;
+};
+
+const HOOKS_OFFER = `Add the gloss Read/Grep hooks to ${CLAUDE_SETTINGS_FILE} so agents see the margin as they read: \`gloss setup --hooks\`.`;
+
+const hooksByHand = (): string =>
+  `${CLAUDE_SETTINGS_FILE} could not be merged (not a JSON object with a hooks.PostToolUse array); add these to hooks.PostToolUse by hand: ${JSON.stringify(claudeHookGroups())}`;
 
 export const readClaudeSnippet = (): string => readFileSync(CLAUDE_SNIPPET_URL, 'utf8').trimEnd();
 
@@ -78,11 +93,23 @@ const ensureClaudeBlock = (repoRoot: string, snippet: string, report: SetupRepor
   report.updated.push(CLAUDE_FILE);
 };
 
-export const setup = (repoRoot: string): SetupReport => {
+const ensureClaudeHooks = (repoRoot: string, report: SetupReport): void => {
+  const outcome = installClaudeHooks(repoRoot);
+  if (outcome === 'created') report.created.push(CLAUDE_SETTINGS_FILE);
+  else if (outcome === 'updated') report.updated.push(CLAUDE_SETTINGS_FILE);
+  else if (outcome === 'present') report.skipped.push(CLAUDE_SETTINGS_FILE);
+  else report.suggestions.push(hooksByHand());
+};
+
+export const setup = (repoRoot: string, options: SetupOptions = {}): SetupReport => {
   const report: SetupReport = { created: [], updated: [], skipped: [], suggestions: [] };
 
   ensureGlossReadme(repoRoot, report);
   ensureClaudeBlock(repoRoot, readClaudeSnippet(), report);
+  if (options.claudeHooks === true) ensureClaudeHooks(repoRoot, report);
+  else if (options.claudeHooks === undefined && !hasClaudeHooks(repoRoot)) {
+    report.suggestions.push(HOOKS_OFFER);
+  }
   report.suggestions.push(...SUGGESTIONS);
 
   return report;

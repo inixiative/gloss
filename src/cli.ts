@@ -1,8 +1,14 @@
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, readSync, realpathSync } from 'node:fs';
 import { dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { checkRepo, normalizeRelPath } from './check';
+import {
+  type ClaudeHookEvent,
+  hasClaudeHooks,
+  isClaudeHookEvent,
+  runClaudeHook,
+} from './claudeCode';
 import { loadRepoDirectives } from './config';
 import { fixRepo } from './fix';
 import { runGit } from './git';
@@ -38,8 +44,13 @@ const USAGE = [
   '  read <file> [symbol]               print the gloss with its derived staleness headers',
   '  history <file> [symbol]            print the changelog of a gloss file or one section',
   '  watch [paths] [--debounce <ms>]    harvest on save, debounced',
-  '  setup                              create .gloss/ and install the CLAUDE.md block',
+  '  setup [--hooks | --no-hooks]       create .gloss/, install the CLAUDE.md block, offer the Claude Code hooks',
+  '  hook <read|grep>                   Claude Code PostToolUse hook: gloss context for a Read or Grep',
 ];
+
+const HOOKS_QUESTION =
+  'Add the gloss Read/Grep hooks to .claude/settings.json so agents see the margin as they read?';
+const HOOK_DEBUG_ENV = 'GLOSS_HOOK_DEBUG';
 
 export type Logger = (line: string) => void;
 
@@ -193,12 +204,61 @@ const logGroup = (log: Logger, title: string, entries: string[]): void => {
   for (const entry of entries) log(`  ${entry}`);
 };
 
-export const runSetup = (repoRoot: string, log: Logger = writeLine): number => {
-  const report = setup(repoRoot);
+export type Confirm = (question: string) => boolean;
+
+const isInteractive = (): boolean => process.stdin.isTTY === true && process.stdout.isTTY === true;
+
+const promptYesNo: Confirm = (question) => {
+  if (!isInteractive()) return false;
+  process.stdout.write(`${question} [Y/n] `);
+  try {
+    const buffer = Buffer.alloc(256);
+    const bytes = readSync(0, buffer, 0, buffer.length, null);
+    if (bytes === 0) return false;
+    const answer = buffer.toString('utf8', 0, bytes).trim().toLowerCase();
+    return answer === '' || answer.startsWith('y');
+  } catch {
+    return false;
+  }
+};
+
+export const runSetup = (
+  repoRoot: string,
+  log: Logger = writeLine,
+  hooks?: boolean,
+  confirm: Confirm = promptYesNo,
+): number => {
+  const accepted = hooks === undefined && !hasClaudeHooks(repoRoot) && confirm(HOOKS_QUESTION);
+  const claudeHooks = hooks ?? (accepted ? true : undefined);
+  const report = setup(repoRoot, { claudeHooks });
   logGroup(log, 'created', report.created);
   logGroup(log, 'updated', report.updated);
   logGroup(log, 'skipped', report.skipped);
   logGroup(log, 'suggestions', report.suggestions);
+  return 0;
+};
+
+const readStdin = (): string => (process.stdin.isTTY === true ? '' : readFileSync(0, 'utf8'));
+
+const reportHookError = (error: unknown): void => {
+  if (process.env[HOOK_DEBUG_ENV]) process.stderr.write(`${String(error)}\n`);
+};
+
+export const runHook = (
+  event: ClaudeHookEvent,
+  cwd: string,
+  log: Logger = writeLine,
+  stdin: () => string = readStdin,
+): number => {
+  let input: string;
+  try {
+    input = stdin();
+  } catch (error) {
+    reportHookError(error);
+    return 0;
+  }
+  const output = runClaudeHook(event, input, cwd, reportHookError);
+  if (output !== undefined) log(output);
   return 0;
 };
 
@@ -212,6 +272,7 @@ type CommandLine = {
   positionals: string[];
   staged: boolean;
   debounceMs?: number;
+  hooks?: boolean;
 };
 
 const parseCommandLine = (argv: string[]): CommandLine | undefined => {
@@ -221,17 +282,22 @@ const parseCommandLine = (argv: string[]): CommandLine | undefined => {
       options: {
         staged: { type: 'boolean', default: false },
         debounce: { type: 'string' },
+        hooks: { type: 'boolean' },
+        'no-hooks': { type: 'boolean' },
       },
       allowPositionals: true,
     });
     const debounceMs = values.debounce === undefined ? undefined : Number(values.debounce);
     if (debounceMs !== undefined && !Number.isFinite(debounceMs)) return undefined;
+    if (values.hooks === true && values['no-hooks'] === true) return undefined;
+    const hooks = values.hooks === true ? true : values['no-hooks'] === true ? false : undefined;
 
     return {
       command: positionals[0],
       positionals: positionals.slice(1),
       staged: values.staged === true,
       debounceMs,
+      hooks,
     };
   } catch {
     return undefined;
@@ -245,6 +311,13 @@ export const runCommand = (
 ): CommandOutcome => {
   const line = parseCommandLine(argv);
   if (!line) return { code: runUsage(log) };
+
+  // why: the hook runs on every agent Read/Grep; it must not depend on git or throw on a bad package.json.
+  if (line.command === 'hook') {
+    const [event] = line.positionals;
+    if (!isClaudeHookEvent(event)) return { code: runUsage(log) };
+    return { code: runHook(event, cwd, log) };
+  }
 
   const repoRoot = findRepoRoot(cwd);
   loadRepoDirectives(repoRoot);
@@ -270,7 +343,7 @@ export const runCommand = (
     case 'watch':
       return { code: 0, watcher: runWatch(repoRoot, paths, line.debounceMs, log) };
     case 'setup':
-      return { code: runSetup(repoRoot, log) };
+      return { code: runSetup(repoRoot, log, line.hooks) };
     default:
       return { code: runUsage(log) };
   }

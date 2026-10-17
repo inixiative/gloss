@@ -158,7 +158,8 @@ Run as `bunx gloss <cmd>`, or `bun src/cli.ts <cmd>` in this repo.
 | `gloss watch` | Harvest on save, debounced. Opt-in per dev process. |
 | `gloss read <file> [symbol]` | Print the gloss with the derived staleness header per section. |
 | `gloss history <file> [symbol]` | Per-section changelog — `git log -p` scoped to one section. |
-| `gloss setup [root]` | Create `.gloss/`, install the CLAUDE.md block. Idempotent; upgrades an existing block in place. |
+| `gloss setup [--hooks \| --no-hooks]` | Create `.gloss/`, install the CLAUDE.md block, offer the Claude Code hooks (`--hooks` / `--no-hooks` to decide without a prompt). Idempotent; upgrades an existing block in place. |
+| `gloss hook <read\|grep>` | Claude Code `PostToolUse` hook: reads the hook JSON on stdin, prints the gloss context as `additionalContext`. |
 
 ## Setup
 
@@ -172,7 +173,8 @@ bunx gloss setup
 markers. Re-running it replaces the block between those markers with the current snippet, so an
 upgrade is `bunx gloss setup`.
 
-It deliberately does not touch git config, `lefthook.yml`, or your `package.json`. Wire the hooks
+It deliberately does not touch git config, `lefthook.yml`, or your `package.json`; the only other file
+it may write is `.claude/settings.json`, and only for the [agent hooks](#agent-hooks) you accept. Wire the hooks
 yourself from `snippets/lefthook.gloss.yml`:
 
 ```yaml
@@ -191,6 +193,67 @@ pre-push:
 
 If the repo publishes to npm, add `.gloss` to `package.json` `files` — our own agents read published
 source in `node_modules`, and daggers must not dangle downstream.
+
+## Agent hooks
+
+The margin is worth most at the moment an agent reads the file, so gloss ships it as a Claude Code
+hook rather than waiting for the agent to run `gloss read`:
+
+- **Read** of a file with a margin → the rendered gloss (with staleness), as if `gloss read <file>` ran.
+- **Grep** for an identifier → the gloss sections whose symbol contains the pattern's longest
+  identifier run (four characters or more), each with its first line, at most eight.
+
+`gloss setup` asks whether to add them; `gloss setup --hooks` adds them without asking and
+`--no-hooks` skips them silently (declined, or without a TTY and without a flag, setup skips and
+prints the suggestion).
+It merges into `.claude/settings.json`: an existing `Read` or `Grep` matcher group gets the entry
+appended, other hooks and keys are left as they are, an entry already present (any command that runs
+`gloss hook read` / `gloss hook grep` under a matcher covering that tool) is never duplicated, and a file it cannot parse is left
+untouched with the entries printed to add by hand. The result:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "test -x \"$CLAUDE_PROJECT_DIR/node_modules/.bin/gloss\" && \"$CLAUDE_PROJECT_DIR/node_modules/.bin/gloss\" hook read || true",
+            "timeout": 20,
+            "statusMessage": "gloss: margin for this file"
+          }
+        ]
+      },
+      {
+        "matcher": "Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "test -x \"$CLAUDE_PROJECT_DIR/node_modules/.bin/gloss\" && \"$CLAUDE_PROJECT_DIR/node_modules/.bin/gloss\" hook grep || true",
+            "timeout": 20,
+            "statusMessage": "gloss: sections for this pattern"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+The command runs the repo's installed bin, not `bunx gloss`: without `node_modules`, `bunx` would
+fetch the unrelated unscoped `gloss` package on every Read. A checkout that has not run the install
+gets no context and no error.
+
+The hook fails silently: bad input, a file outside a glossed tree, or no margin prints nothing and
+exits 0, because a hook that errors interrupts the agent on every Read. `GLOSS_HOOK_DEBUG=1` prints
+the swallowed error to stderr. Output is capped at 8,000 characters.
+
+The core is harness-neutral: `glossContextForRead(repoRoot, relPath)` and
+`glossContextForGrep(repoRoot, pattern)` return the context text, and `src/claudeCode.ts` is the
+Claude Code adapter (stdin JSON in, `hookSpecificOutput.additionalContext` out, settings merge).
+Another harness gets its own adapter over the same two functions.
 
 ## Doctrine
 
