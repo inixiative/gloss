@@ -107,6 +107,36 @@ describe('lintSource', () => {
     expect(violations[0].message).toContain("continues the '// why:' on line 1");
   });
 
+  test('trailing whys on separate code lines are separate one-line whys', () => {
+    const trailing = 'export const a = 1; // why: x\nexport const b = 2; // why: y\n';
+    const mixed = '// why: x\nexport const b = 2; // why: y\n';
+
+    expect(lintSource('src/a.ts', trailing)).toEqual([]);
+    expect(lintSource('src/a.ts', mixed)).toEqual([]);
+  });
+
+  test('a plain comment under a trailing why is ordinary, not overflow', () => {
+    const source = 'export const a = 1; // why: x\n// about b\nexport const b = 2;\n';
+
+    expect(kindsAt(lintSource('src/a.ts', source))).toEqual([[2, 'forbiddenComment']]);
+  });
+
+  test('every overflow line under a why is longWhy', () => {
+    const source = '// why: a\n// more\n// more2\nexport const a = 1;\n';
+
+    expect(kindsAt(lintSource('src/a.ts', source))).toEqual([
+      [2, 'longWhy'],
+      [3, 'longWhy'],
+    ]);
+  });
+
+  test('a one-line JSX why inside a multi-line container is still one line', () => {
+    const source =
+      'export const A = () => (\n  <div>\n    {\n      /* why: a */\n    }\n  </div>\n);\n';
+
+    expect(lintSource('src/a.tsx', source)).toEqual([]);
+  });
+
   test('a why longer than the limit is flagged; the limit is configurable', () => {
     const long = `// why: ${'x'.repeat(DEFAULT_WHY_MAX_LENGTH)}\nexport const a = 1;\n`;
     const atLimit = `// why: ${'x'.repeat(DEFAULT_WHY_MAX_LENGTH - 8)}\nexport const a = 1;\n`;

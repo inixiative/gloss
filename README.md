@@ -58,9 +58,10 @@ export const resolveMarkerTarget = (source: ParsedSource, line: number) => { ...
 **`// why:`** — a comment whose text starts `why:` in any form (`//`, `///`, `/* */`, own-line or
 trailing). Lint allows one short line and flags the rest (`longWhy`): a `why:` spanning more than one
 line (consecutive `why:` lines or a multi-line block), or one longer than 120 characters, measured
-over the whole comment. A plain comment directly under a `why:` line is reported (`longWhy`) as its overflow. The
-harvester never moves a `why:`; it sweeps only the plain overflow, like any other comment. The limit
-is per repo:
+over the whole comment. A plain comment on the line directly under an own-line `why:` is reported
+(`longWhy`) as its overflow. The harvester never moves a `why:`; it sweeps only the plain overflow,
+like any other comment, so dropping the `why:` label from extra lines and running `gloss harvest`
+moves them into the gloss. The limit is per repo:
 
 ```json
 { "gloss": { "whyMaxLength": 100 } }

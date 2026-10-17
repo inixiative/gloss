@@ -12,7 +12,7 @@ Source files carry only these comment forms:
 2. Machine directives — `eslint-disable*`, `biome-ignore`, `@ts-expect-error`/`@ts-ignore`/
    `@ts-nocheck`, `prettier-ignore`, `/// <reference`, shebangs, license headers, `#__PURE__`,
    bundler magic comments, istanbul/c8, `@vitest-environment`, `sourceMappingURL`.
-3. `// why:` — the rare exception, strongly discouraged: ONE short line (at most 120 characters),
+3. `// why:` — the rare exception, strongly discouraged: ONE short line (120 characters by default),
    only where the code can't make a constraint clear on its own. Aim for about 1% of comments. Never a
    narrative: anything longer goes in the symbol's gloss section. `gloss lint` flags a `why:` that
    runs past one line or the limit; the harvester never touches one.

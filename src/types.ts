@@ -27,6 +27,7 @@ export type CommentHit = {
   text: string;
   startLine: number;
   endLine: number;
+  ownLine: boolean;
   enclosingSymbol?: string;
   adjacentCode?: string;
   removalText?: string;

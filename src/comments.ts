@@ -249,6 +249,7 @@ export const classifyComments = (
       text: comment.text,
       startLine: comment.startLine,
       endLine: comment.endLine,
+      ownLine: comment.ownLine,
     };
     if (kind !== 'harvestable' && kind !== 'why') return hit;
 
