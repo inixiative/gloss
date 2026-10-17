@@ -107,7 +107,9 @@ export const setup = (repoRoot: string, options: SetupOptions = {}): SetupReport
   ensureGlossReadme(repoRoot, report);
   ensureClaudeBlock(repoRoot, readClaudeSnippet(), report);
   if (options.claudeHooks === true) ensureClaudeHooks(repoRoot, report);
-  else if (!hasClaudeHooks(repoRoot)) report.suggestions.push(HOOKS_OFFER);
+  else if (options.claudeHooks === undefined && !hasClaudeHooks(repoRoot)) {
+    report.suggestions.push(HOOKS_OFFER);
+  }
   report.suggestions.push(...SUGGESTIONS);
 
   return report;

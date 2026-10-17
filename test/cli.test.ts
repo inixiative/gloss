@@ -274,15 +274,26 @@ describe('runSetup', () => {
     expect(runSetup(root, log, true, (question) => asked.push(question) > 0)).toBe(0);
     expect(asked).toEqual([]);
     expect(lines).toContain('  .claude/settings.json');
-    expect(read(root, '.claude/settings.json')).toContain('bunx gloss hook read');
-    expect(read(root, '.claude/settings.json')).toContain('bunx gloss hook grep');
+    expect(read(root, '.claude/settings.json')).toContain('.bin/gloss\\" hook read');
+    expect(read(root, '.claude/settings.json')).toContain('.bin/gloss\\" hook grep');
   });
 
-  test('--no-hooks leaves .claude alone and suggests the flag', () => {
+  test('--no-hooks leaves .claude alone without asking or suggesting', () => {
+    const root = repo();
+    const { lines, log } = collector();
+    const asked: string[] = [];
+
+    expect(runSetup(root, log, false, (question) => asked.push(question) > 0)).toBe(0);
+    expect(asked).toEqual([]);
+    expect(existsSync(join(root, '.claude/settings.json'))).toBe(false);
+    expect(lines.some((line) => line.includes('gloss setup --hooks'))).toBe(false);
+  });
+
+  test('a declined prompt leaves .claude alone and suggests the flag', () => {
     const root = repo();
     const { lines, log } = collector();
 
-    expect(runSetup(root, log, false, () => true)).toBe(0);
+    runSetup(root, log, undefined, () => false);
     expect(existsSync(join(root, '.claude/settings.json'))).toBe(false);
     expect(lines.some((line) => line.includes('gloss setup --hooks'))).toBe(true);
   });
@@ -307,7 +318,7 @@ describe('runSetup', () => {
     );
     expect(asked).toHaveLength(1);
     expect(asked[0]).toContain('.claude/settings.json');
-    expect(read(accepted, '.claude/settings.json')).toContain('bunx gloss hook read');
+    expect(read(accepted, '.claude/settings.json')).toContain('.bin/gloss\\" hook read');
   });
 
   test('does not ask again once the hooks are installed', () => {

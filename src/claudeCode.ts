@@ -80,7 +80,12 @@ export const runClaudeHook = (
   }
 };
 
-export const claudeHookCommand = (event: ClaudeHookEvent): string => `bunx gloss hook ${event}`;
+const LOCAL_BIN = '"$CLAUDE_PROJECT_DIR/node_modules/.bin/gloss"';
+
+// why: the repo's own installed bin, never `bunx gloss`: a teammate without node_modules would have bunx fetch
+// why: the unrelated unscoped `gloss` package on every Read; a missing install stays silent like the hook does.
+export const claudeHookCommand = (event: ClaudeHookEvent): string =>
+  `test -x ${LOCAL_BIN} && ${LOCAL_BIN} hook ${event} || true`;
 
 export const CLAUDE_HOOK_MATCHERS: Record<ClaudeHookEvent, string> = { read: 'Read', grep: 'Grep' };
 
@@ -123,9 +128,19 @@ type JsonObject = Record<string, unknown>;
 const isObject = (value: unknown): value is JsonObject =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const commandsIn = (groups: unknown[]): string[] =>
+const matcherCovers = (matcher: unknown, tool: string): boolean => {
+  if (matcher === undefined || matcher === '' || matcher === '*') return true;
+  if (typeof matcher !== 'string') return false;
+  try {
+    return new RegExp(`^(?:${matcher})$`).test(tool);
+  } catch {
+    return matcher === tool;
+  }
+};
+
+const commandsFor = (groups: unknown[], tool: string): string[] =>
   groups.flatMap((group) =>
-    isObject(group) && Array.isArray(group.hooks)
+    isObject(group) && Array.isArray(group.hooks) && matcherCovers(group.matcher, tool)
       ? group.hooks.flatMap((hook) =>
           isObject(hook) && typeof hook.command === 'string' ? [hook.command] : [],
         )
@@ -133,8 +148,10 @@ const commandsIn = (groups: unknown[]): string[] =>
   );
 
 const hasGlossHook = (groups: unknown[], event: ClaudeHookEvent): boolean => {
-  const invocation = new RegExp(`\\bgloss\\s+hook\\s+${event}\\b`);
-  return commandsIn(groups).some((command) => invocation.test(command));
+  const invocation = new RegExp(`\\bgloss"?\\s+hook\\s+${event}\\b`);
+  return commandsFor(groups, CLAUDE_HOOK_MATCHERS[event]).some((command) =>
+    invocation.test(command),
+  );
 };
 
 const addGlossHook = (groups: unknown[], event: ClaudeHookEvent): void => {

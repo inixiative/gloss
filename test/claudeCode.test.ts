@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, readFileSync, realpathSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -200,6 +200,61 @@ describe('installClaudeHooks', () => {
 
     expect(installClaudeHooks(root)).toBe('present');
     expect(readFileSync(join(root, CLAUDE_SETTINGS_FILE), 'utf8')).toBe(text);
+  });
+
+  test('counts an entry only under a matcher that covers its tool', () => {
+    const root = plainRoot();
+    const readUnderBash = { type: 'command', command: 'bunx gloss hook read' };
+    const grepEverywhere = { type: 'command', command: 'bunx gloss hook grep' };
+    writeFiles(root, {
+      [CLAUDE_SETTINGS_FILE]: JSON.stringify({
+        hooks: {
+          PostToolUse: [
+            { matcher: 'Bash', hooks: [readUnderBash] },
+            { matcher: '*', hooks: [grepEverywhere] },
+          ],
+        },
+      }),
+    });
+
+    expect(hasClaudeHooks(root)).toBe(false);
+    expect(installClaudeHooks(root)).toBe('updated');
+    expect(settingsOf(root)).toEqual({
+      hooks: {
+        PostToolUse: [
+          { matcher: 'Bash', hooks: [readUnderBash] },
+          { matcher: '*', hooks: [grepEverywhere] },
+          { matcher: 'Read', hooks: [claudeHookEntry('read')] },
+        ],
+      },
+    });
+  });
+
+  test('the command runs the installed bin and stays silent without one', () => {
+    const root = glossedRepo();
+    const run = (event: 'read' | 'grep', input: Record<string, unknown>) =>
+      Bun.spawnSync(['sh', '-c', claudeHookEntry(event).command], {
+        cwd: root,
+        env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+        stdin: Buffer.from(JSON.stringify(input)),
+        stdout: 'pipe',
+        stderr: 'pipe',
+      });
+    const readInput = { tool_input: { file_path: join(root, SOURCE) } };
+
+    const missing = run('read', readInput);
+    expect(missing.exitCode).toBe(0);
+    expect(missing.stdout.toString()).toBe('');
+    expect(missing.stderr.toString()).toBe('');
+
+    const bin = join(root, 'node_modules/.bin/gloss');
+    writeFiles(root, {
+      'node_modules/.bin/gloss': `#!/bin/sh\nexec bun ${join(import.meta.dir, '../src/cli.ts')} "$@"\n`,
+    });
+    chmodSync(bin, 0o755);
+    const installed = run('read', readInput);
+    expect(installed.exitCode).toBe(0);
+    expect(contextOf(installed.stdout.toString().trim())).toContain('Tenant-namespaced keys.');
   });
 
   test('adds only the missing entry when one is present', () => {

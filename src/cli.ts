@@ -214,6 +214,7 @@ const promptYesNo: Confirm = (question) => {
   try {
     const buffer = Buffer.alloc(256);
     const bytes = readSync(0, buffer, 0, buffer.length, null);
+    if (bytes === 0) return false;
     const answer = buffer.toString('utf8', 0, bytes).trim().toLowerCase();
     return answer === '' || answer.startsWith('y');
   } catch {
@@ -227,7 +228,8 @@ export const runSetup = (
   hooks?: boolean,
   confirm: Confirm = promptYesNo,
 ): number => {
-  const claudeHooks = hooks ?? (!hasClaudeHooks(repoRoot) && confirm(HOOKS_QUESTION));
+  const accepted = hooks === undefined && !hasClaudeHooks(repoRoot) && confirm(HOOKS_QUESTION);
+  const claudeHooks = hooks ?? (accepted ? true : undefined);
   const report = setup(repoRoot, { claudeHooks });
   logGroup(log, 'created', report.created);
   logGroup(log, 'updated', report.updated);
@@ -236,7 +238,7 @@ export const runSetup = (
   return 0;
 };
 
-const readStdin = (): string => readFileSync(0, 'utf8');
+const readStdin = (): string => (process.stdin.isTTY === true ? '' : readFileSync(0, 'utf8'));
 
 const reportHookError = (error: unknown): void => {
   if (process.env[HOOK_DEBUG_ENV]) process.stderr.write(`${String(error)}\n`);
