@@ -419,21 +419,37 @@ describe('runSetup', () => {
     expect(lines).toContain('  - Our own ruling: no comments at all.');
   });
 
-  test('treats a begin marker with no end marker as a customised block', () => {
+  test('never replaces a begin marker with no end marker, even with --update-block', () => {
     const root = repo();
-    writeFiles(root, { 'CLAUDE.md': '# Guide\n\n<!-- gloss:begin -->\nhalf a block\n' });
+    writeFiles(root, {
+      'CLAUDE.md': '# Guide\n\n<!-- gloss:begin -->\nhalf a block\n\n## Keep me\n',
+    });
     const before = read(root, 'CLAUDE.md');
+    const asked: string[] = [];
+    const { lines, log } = collector();
 
     runSetup(
       root,
-      () => {},
-      { hooks: false },
-      () => false,
+      log,
+      { hooks: false, updateBlock: true },
+      (question) => asked.push(question) > 0,
     );
+    expect(asked).toEqual([]);
     expect(read(root, 'CLAUDE.md')).toBe(before);
+    expect(lines.some((line) => line.includes('with no <!-- gloss:end -->'))).toBe(true);
+  });
 
-    runSetup(root, () => {}, { hooks: false, updateBlock: true });
-    expect(read(root, 'CLAUDE.md')).toBe(`# Guide\n\n${readClaudeSnippet()}\n`);
+  test('a CRLF copy of the shipped block counts as identical', () => {
+    const root = repo();
+    const crlf = `# Guide\r\n\r\n${readClaudeSnippet().replace(/\n/g, '\r\n')}\r\n`;
+    writeFiles(root, { 'CLAUDE.md': crlf });
+    const asked: string[] = [];
+    const { lines, log } = collector();
+
+    runSetup(root, log, { hooks: false }, (question) => asked.push(question) > 0);
+    expect(asked).toEqual([]);
+    expect(read(root, 'CLAUDE.md')).toBe(crlf);
+    expect(lines.some((line) => line.includes('differs from the shipped snippet'))).toBe(false);
   });
 
   test('setup() keeps a customised block by default and returns its diff', () => {

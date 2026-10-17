@@ -39,7 +39,8 @@ export { lintPaths, lintSource } from './lint';
 export { renderGloss } from './read';
 export { parseSource } from './resolver';
 export {
-  claudeBlockDiff,
+  type ClaudeBlockStatus,
+  claudeBlockStatus,
   readClaudeSnippet,
   type SetupOptions,
   type SetupReport,

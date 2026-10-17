@@ -66,8 +66,7 @@ const spliceSnippetBlock = (existing: string, snippet: string): string => {
     const head = existing.trimEnd();
     return head.length === 0 ? `${snippet}\n` : `${head}\n\n${snippet}\n`;
   }
-  const tail = block.closed ? existing.slice(block.end) : '\n';
-  return `${existing.slice(0, block.start)}${snippet}${tail}`;
+  return `${existing.slice(0, block.start)}${snippet}${existing.slice(block.end)}`;
 };
 
 const lineDiff = (before: string[], after: string[]): string[] => {
@@ -101,18 +100,29 @@ const lineDiff = (before: string[], after: string[]): string[] => {
   return lines;
 };
 
-export const claudeBlockDiff = (
+export type ClaudeBlockStatus =
+  | { state: 'absent' | 'current' }
+  | { state: 'customised' | 'unclosed'; diff: string[] };
+
+const normalizeNewlines = (text: string): string => text.replace(/\r\n/g, '\n');
+
+export const claudeBlockStatus = (
   repoRoot: string,
   snippet: string = readClaudeSnippet(),
-): string[] => {
+): ClaudeBlockStatus => {
   const claudePath = join(repoRoot, CLAUDE_FILE);
-  if (!existsSync(claudePath)) return [];
-  const block = findSnippetBlock(readFileSync(claudePath, 'utf8'));
-  if (block === undefined || block.text === snippet) return [];
-  return lineDiff(block.text.split('\n'), snippet.split('\n'));
+  if (!existsSync(claudePath)) return { state: 'absent' };
+  const block = findSnippetBlock(normalizeNewlines(readFileSync(claudePath, 'utf8')));
+  if (block === undefined) return { state: 'absent' };
+  if (block.closed && block.text === snippet) return { state: 'current' };
+  return {
+    state: block.closed ? 'customised' : 'unclosed',
+    diff: lineDiff(block.text.split('\n'), snippet.split('\n')),
+  };
 };
 
 const KEPT_BLOCK_SUGGESTION = `The gloss block in ${CLAUDE_FILE} differs from the shipped snippet and was kept; \`gloss setup --update-block\` replaces it.`;
+export const UNCLOSED_BLOCK_SUGGESTION = `${CLAUDE_FILE} has a ${BEGIN_MARKER} with no ${END_MARKER}, so the block would run to the end of the file; it was left alone. Add the end marker where the block ends, then re-run setup.`;
 
 const ensureGlossReadme = (repoRoot: string, report: SetupReport): void => {
   const readmePath = join(repoRoot, GLOSS_README);
@@ -139,11 +149,24 @@ const ensureClaudeBlock = (
     return;
   }
 
-  report.blockDiff = claudeBlockDiff(repoRoot, snippet);
-  if (report.blockDiff.length > 0 && !updateBlock) {
+  const status = claudeBlockStatus(repoRoot, snippet);
+  if (status.state === 'current') {
     report.skipped.push(CLAUDE_FILE);
-    report.suggestions.push(KEPT_BLOCK_SUGGESTION);
     return;
+  }
+  if (status.state === 'unclosed') {
+    report.blockDiff = status.diff;
+    report.skipped.push(CLAUDE_FILE);
+    report.suggestions.push(UNCLOSED_BLOCK_SUGGESTION);
+    return;
+  }
+  if (status.state === 'customised') {
+    report.blockDiff = status.diff;
+    if (!updateBlock) {
+      report.skipped.push(CLAUDE_FILE);
+      report.suggestions.push(KEPT_BLOCK_SUGGESTION);
+      return;
+    }
   }
 
   const existing = readFileSync(claudePath, 'utf8');

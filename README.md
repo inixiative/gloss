@@ -118,8 +118,9 @@ whose dagger was deleted.
 
 The write path is mechanical, not instructional. A comment an agent writes out of habit doesn't stay
 in the source: the harvester sweeps every comment that isn't a dagger, a directive or a legacy
-`// why:` line into the enclosing symbol's gloss section and plants the dagger. Nothing depends on an agent remembering a CLAUDE.md line through a long session, and nothing
-is deleted to satisfy lint: the spillway fills by machine.
+`// why:` line into the enclosing symbol's gloss section and plants the dagger, and nothing is
+deleted to satisfy lint: the spillway fills by machine. The one part that rests on instruction alone
+is "no new `// why:` lines": lint and the harvester still exempt them, so only the rule stops a new one.
 
 The calm default is harvest-at-commit (`gloss harvest --staged` in pre-commit). `gloss watch` is
 opt-in per dev process and heavily debounced — it must never rewrite a file mid-edit, which is the
@@ -175,6 +176,10 @@ A block that differs from the shipped snippet (an upgrade, or a repo's own rulin
 overwritten silently. Setup prints the difference (`-` the repo's lines, `+` the shipped ones) and
 then, on a TTY, asks whether to replace it (default no); without a TTY it keeps the block and says
 so. `bunx gloss setup --update-block` replaces it without asking, which is how an upgrade lands.
+Line endings are compared as `\n`, so a CRLF copy of the snippet counts as identical. A begin
+marker with no end marker is never replaced, flag or not, because the block would run to the end
+of the file; setup says so and leaves it for you to close. An existing `.gloss/README.md` is never
+rewritten.
 
 It deliberately does not touch git config, `lefthook.yml`, or your `package.json`; the only other file
 it may write is `.claude/settings.json`, and only for the [agent hooks](#agent-hooks) you accept. Wire the hooks

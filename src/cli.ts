@@ -17,7 +17,7 @@ import { harvestPaths } from './harvest';
 import { sectionHistory } from './history';
 import { lintPaths } from './lint';
 import { renderGloss } from './read';
-import { claudeBlockDiff, setup } from './setup';
+import { claudeBlockStatus, setup } from './setup';
 import type { CheckViolation, LintViolation } from './types';
 import { type WatchHandle, watchGloss } from './watch';
 
@@ -237,13 +237,13 @@ export const runSetup = (
   flags: SetupFlags = {},
   confirm: Confirm = promptYesNo,
 ): number => {
-  const blockDiff = claudeBlockDiff(repoRoot);
-  if (blockDiff.length > 0) {
+  const block = claudeBlockStatus(repoRoot);
+  if (block.state === 'customised') {
     log(BLOCK_DIFF_TITLE);
-    for (const line of blockDiff) log(`  ${line}`);
+    for (const line of block.diff) log(`  ${line}`);
   }
   const updateBlock =
-    flags.updateBlock === true || (blockDiff.length > 0 && confirm(BLOCK_QUESTION, false));
+    flags.updateBlock === true || (block.state === 'customised' && confirm(BLOCK_QUESTION, false));
 
   const { hooks } = flags;
   const accepted =
