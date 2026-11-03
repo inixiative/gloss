@@ -1,7 +1,7 @@
 {
   "name": "@inixiative/gloss",
   "version": "0.1.1",
-  "description": "Decluttered source: commentary lives in a per-file gloss margin, not the code — harvester, watcher, lint, and read tooling",
+  "description": "Comment-free source: commentary lives in a per-file gloss margin beside the code, with harvester, watcher, lint and read tooling",
   "type": "module",
   "license": "MIT",
   "author": "Aron Greenspan",
