@@ -1,0 +1,45 @@
+{
+  "id": "agent-integration-setup-and-cli",
+  "title": "Agent hooks, setup and CLI",
+  "routing": "Is this about getting gloss to agents or users: the Claude Code PostToolUse hook for Read/Grep (runClaudeHook, claudeHookContext, gloss hook), harness-neutral context (glossContextForRead/glossContextForGrep), merging hooks into .claude/settings.json (installClaudeHooks, hasClaudeHooks), `gloss setup` and the CLAUDE.md gloss block (setup, claudeBlockStatus, readClaudeSnippet, --hooks, --update-block), publishing .gloss in package.json files, or the gloss bin dispatcher in src/cli.ts?",
+  "concepts": ["agent-context", "claude-code-hooks", "setup", "cli"],
+  "tokens": 8979,
+  "tokenMethod": "chars/4",
+  "files": {
+    "recognise": {
+      "path": "recognise.md",
+      "tokens": 1362,
+      "experimental": true,
+      "note": "a smaller recognise-only document; knowledge.md is the Warden document"
+    },
+    "knowledge": {
+      "path": "knowledge.md",
+      "tokens": 8979
+    }
+  },
+  "runsAgreed": 2,
+  "sources": {
+    "docs": [
+      ".gloss/src/claudeCode.ts.md",
+      ".gloss/src/cli.ts.md",
+      ".gloss/src/context.ts.md",
+      "README.md"
+    ],
+    "docUnits": [
+      "doc:.gloss/src/context.ts.md#identifiertoken",
+      "doc:README.md#agent-hooks",
+      "doc:.gloss/src/claudeCode.ts.md#runclaudehook",
+      "doc:.gloss/src/claudeCode.ts.md#claudehookcommand",
+      "doc:.gloss/src/claudeCode.ts.md#installclaudehooks",
+      "doc:README.md#setup",
+      "doc:.gloss/src/cli.ts.md#runcommand",
+      "doc:.gloss/src/cli.ts.md#isentrypath",
+      "doc:README.md#cli"
+    ],
+    "catalogClusters": ["command-setup", "integration-agent-hooks", "tool-cli"],
+    "codeEntries": 35,
+    "docMembers": 11
+  },
+  "bypassLines": 8,
+  "glossaryTerms": 30
+}

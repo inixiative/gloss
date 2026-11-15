@@ -1,0 +1,62 @@
+{
+  "id": "comment-rule-and-source-scanning",
+  "title": "Comment rule and source scanning",
+  "routing": "Is this about what a comment may stay in a source file \u2014 daggers (`// gloss`, `// gloss:file`), machine directives, a one-line `// why:` \u2014 or about how gloss reads source: classifyComments, DIRECTIVE_PATTERNS, the package.json `gloss` config (directives, whyMaxLength, exclude) via loadRepoDirectives, parseSource binding a dagger to its declaration, or `gloss lint` / lintPaths / lintSource? Plain jobs: 'should this comment be here', 'teach gloss our own directive', 'make the why limit shorter', 'flag comments that belong in the margin'.",
+  "concepts": [
+    "comment-rule",
+    "comment-classification",
+    "repo-config",
+    "file-enumeration",
+    "dagger-resolver",
+    "lint"
+  ],
+  "tokens": 9850,
+  "tokenMethod": "chars/4",
+  "files": {
+    "recognise": {
+      "path": "recognise.md",
+      "tokens": 1531,
+      "experimental": true,
+      "note": "a smaller recognise-only document; knowledge.md is the Warden document"
+    },
+    "knowledge": {
+      "path": "knowledge.md",
+      "tokens": 9850
+    }
+  },
+  "runsAgreed": 2,
+  "sources": {
+    "docs": [
+      ".gloss/src/comments.ts.md",
+      ".gloss/src/config.ts.md",
+      ".gloss/src/git.ts.md",
+      "README.md",
+      "snippets/CLAUDE.gloss.md"
+    ],
+    "docUnits": [
+      "doc:README.md#preface",
+      "doc:README.md#the-comment-rule",
+      "doc:README.md#doctrine",
+      "doc:snippets/CLAUDE.gloss.md#gloss-commentary-lives-in-the-margin-not-in-the-code",
+      "doc:.gloss/src/comments.ts.md#jsxcommentcontainers",
+      "doc:.gloss/src/config.ts.md#loadrepodirectives",
+      "doc:.gloss/src/git.ts.md#isexcluded",
+      "doc:.gloss/src/git.ts.md#ignoredpaths",
+      "doc:README.md#where-the-gloss-lives",
+      "doc:README.md#design"
+    ],
+    "catalogClusters": [
+      "command-check-fix",
+      "command-harvest",
+      "command-lint",
+      "command-read-staleness",
+      "primitive-comment-rule",
+      "primitive-resolver",
+      "primitive-sidecar"
+    ],
+    "codeEntries": 22,
+    "docMembers": 18
+  },
+  "bypassLines": 8,
+  "glossaryTerms": 28
+}
