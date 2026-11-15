@@ -3,7 +3,7 @@
   "title": "Sidecar, harvest and check",
   "routing": "Is this about the .gloss/ margin files themselves \u2014 their path (glossPathFor, sourcePathFor, locateGlossFile, findGlossRoot), their markdown (parseGlossDoc, serializeGlossDoc, upsertSection) \u2014 or about writing them (`gloss harvest`, harvestPaths, harvestSource, `gloss watch`, gloss.exclude) or keeping daggers and sections paired (`gloss check`, checkRepo, checkFile, `gloss fix`, fixRepo)? Plain jobs: 'move these comments into the margin', 'add a note for this function', 'the check broke after a rename', 'find the sidecar for this file'.",
   "concepts": ["sidecar-format", "harvest", "check-fix"],
-  "tokens": 7855,
+  "tokens": 7852,
   "tokenMethod": "chars/4",
   "files": {
     "recognise": {
@@ -14,7 +14,7 @@
     },
     "knowledge": {
       "path": "knowledge.md",
-      "tokens": 7855
+      "tokens": 7852
     }
   },
   "runsAgreed": 2,

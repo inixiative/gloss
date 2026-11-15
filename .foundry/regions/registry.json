@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "project": "foundry-regions",
+  "project": "gloss",
   "builtFrom": {
     "docs": ["README.md", "evals/README.md", "snippets/CLAUDE.gloss.md", ".gloss/**/*.md"],
     "excluded": [],
@@ -110,7 +110,7 @@
   "regions": [
     {
       "id": "comment-rule-and-source-scanning",
-      "tokens": 9850,
+      "tokens": 9847,
       "recogniseTokens": 1531,
       "concepts": [
         "comment-rule",
@@ -124,28 +124,28 @@
     },
     {
       "id": "sidecar-harvest-and-check",
-      "tokens": 7855,
+      "tokens": 7852,
       "recogniseTokens": 1489,
       "concepts": ["sidecar-format", "harvest", "check-fix"],
       "runsAgreed": 2
     },
     {
       "id": "read-and-staleness",
-      "tokens": 3743,
+      "tokens": 3741,
       "recogniseTokens": 764,
       "concepts": ["staleness-read", "git-helpers"],
       "runsAgreed": 1
     },
     {
       "id": "agent-integration-setup-and-cli",
-      "tokens": 8979,
+      "tokens": 8976,
       "recogniseTokens": 1362,
       "concepts": ["agent-context", "claude-code-hooks", "setup", "cli"],
       "runsAgreed": 2
     },
     {
       "id": "behavioural-evals",
-      "tokens": 4072,
+      "tokens": 4070,
       "recogniseTokens": 726,
       "concepts": ["behavioural-evals"],
       "runsAgreed": 3

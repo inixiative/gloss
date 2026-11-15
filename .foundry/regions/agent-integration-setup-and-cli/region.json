@@ -3,7 +3,7 @@
   "title": "Agent hooks, setup and CLI",
   "routing": "Is this about getting gloss to agents or users: the Claude Code PostToolUse hook for Read/Grep (runClaudeHook, claudeHookContext, gloss hook), harness-neutral context (glossContextForRead/glossContextForGrep), merging hooks into .claude/settings.json (installClaudeHooks, hasClaudeHooks), `gloss setup` and the CLAUDE.md gloss block (setup, claudeBlockStatus, readClaudeSnippet, --hooks, --update-block), publishing .gloss in package.json files, or the gloss bin dispatcher in src/cli.ts?",
   "concepts": ["agent-context", "claude-code-hooks", "setup", "cli"],
-  "tokens": 8979,
+  "tokens": 8976,
   "tokenMethod": "chars/4",
   "files": {
     "recognise": {
@@ -14,7 +14,7 @@
     },
     "knowledge": {
       "path": "knowledge.md",
-      "tokens": 8979
+      "tokens": 8976
     }
   },
   "runsAgreed": 2,

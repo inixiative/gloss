@@ -10,7 +10,7 @@
     "dagger-resolver",
     "lint"
   ],
-  "tokens": 9850,
+  "tokens": 9847,
   "tokenMethod": "chars/4",
   "files": {
     "recognise": {
@@ -21,7 +21,7 @@
     },
     "knowledge": {
       "path": "knowledge.md",
-      "tokens": 9850
+      "tokens": 9847
     }
   },
   "runsAgreed": 2,

@@ -3,7 +3,7 @@
   "title": "Behavioural agent evals",
   "routing": "Is this about testing whether coding agents follow the gloss discipline: evals/run.ts, GLOSS_EVALS=1, --model/--runs/--keep, the readSide, writeSide, deletionDiscipline or constraintFiling scenarios, pass-rates, eval cost, mechanical transcript grading, or re-running evals after snippets/CLAUDE.gloss.md changes?",
   "concepts": ["behavioural-evals"],
-  "tokens": 4072,
+  "tokens": 4070,
   "tokenMethod": "chars/4",
   "files": {
     "recognise": {
@@ -14,7 +14,7 @@
     },
     "knowledge": {
       "path": "knowledge.md",
-      "tokens": 4072
+      "tokens": 4070
     }
   },
   "runsAgreed": 3,

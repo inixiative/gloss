@@ -1,6 +1,6 @@
-# foundry-regions glossary
+# gloss glossary
 
-**Every term foundry-regions's region Wardens use, alphabetical, each with the region that holds it.**
+**Every term gloss's region Wardens use, alphabetical, each with the region that holds it.**
 
 <!-- Generated with the region Warden docs by the region pipeline's assemble.py. A term defined by two regions appears once per region. -->
 
