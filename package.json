@@ -33,7 +33,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check . && bun src/cli.ts lint && bun src/cli.ts check",
     "format": "biome format --write .",
-    "check": "bun run typecheck && bun run lint && bun run test",
+    "check:all": "bun run typecheck && bun run lint && bun run test",
+    "check": "inixiative-config bounded -- bun run check:all",
     "prepublishOnly": "bun run check && bun run build"
   },
   "packageManager": "bun@1.4.4",
